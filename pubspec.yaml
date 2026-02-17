@@ -1,0 +1,45 @@
+name: mshoni_frontend
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.8
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  flutter_native_splash: ^2.4.7
+  google_fonts: ^6.1.0
+  flutter_svg: ^2.0.10
+  curved_navigation_bar: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.1
+
+# Native splash configuration (must be at root level, NOT under dependencies)
+flutter_native_splash:
+  color: "#E7F0FF"
+  image: assets/images/logo1.png
+  android: true
+  ios: true
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/images/app_icon.png
+  min_sdk_android: 21
+
+
+# Flutter section (only once!)
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/google.svg
+    - assets/icons/facebook.svg
