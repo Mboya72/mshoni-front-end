@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
-import 'package:mshoni_frontend/features/customer/screens/customer_home_screen.dart';
-import 'package:mshoni_frontend/features/customer/screens/customer_message_screen.dart';
-import 'package:mshoni_frontend/features/customer/screens/customer_tailors_screen.dart';
-import 'package:mshoni_frontend/features/customer/screens/customer_projects_screen.dart'; // new
-import 'package:mshoni_frontend/features/customer/screens/customer_profile_screen.dart';
-import 'package:mshoni_frontend/features/tailor/screens/tailor_home_screen.dart';
-import 'package:mshoni_frontend/features/tailor/screens/tailor_message_screen.dart';
-import 'package:mshoni_frontend/features/tailor/screens/tailor_customers_screen.dart';
-import 'package:mshoni_frontend/features/tailor/screens/tailor_projects_screen.dart';
-import 'package:mshoni_frontend/features/tailor/screens/tailor_profile_screen.dart';
+import 'package:mshoni/features/customer/screens/customer_home_screen.dart';
+import 'package:mshoni/features/customer/screens/customer_message_screen.dart';
+import 'package:mshoni/features/customer/screens/customer_tailors_screen.dart';
+import 'package:mshoni/features/customer/screens/customer_projects_screen.dart'; // new
+import 'package:mshoni/features/customer/screens/customer_profile_screen.dart';
+import 'package:mshoni/features/tailor/screens/tailor_home_screen.dart';
+import 'package:mshoni/features/tailor/screens/tailor_message_screen.dart';
+import 'package:mshoni/features/tailor/screens/tailor_customers_screen.dart';
+import 'package:mshoni/features/tailor/screens/tailor_projects_screen.dart';
+import 'package:mshoni/features/tailor/screens/tailor_profile_screen.dart';
 import '../../core/theme/app_colors.dart';
 
 enum UserRole { customer, tailor }

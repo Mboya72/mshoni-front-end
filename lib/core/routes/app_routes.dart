@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:mshoni_frontend/features/nav/nav_bar.dart';
-import 'package:mshoni_frontend/features/onboarding/screens/onboarding_screen.dart';
-import 'package:mshoni_frontend/features/auth/screens/signup_screen.dart';
-import 'package:mshoni_frontend/features/auth/screens/signin_screen.dart';
+import 'package:mshoni/features/nav/nav_bar.dart';
+import 'package:mshoni/features/onboarding/screens/onboarding_screen.dart';
+import 'package:mshoni/features/auth/screens/signup_screen.dart';
+import 'package:mshoni/features/auth/screens/signin_screen.dart';
 
 class AppRoutes {
   static const onboarding = '/';

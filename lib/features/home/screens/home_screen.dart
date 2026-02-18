@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mshoni_frontend/features/nav/nav_bar.dart';
+import 'package:mshoni/features/nav/nav_bar.dart';
 
 class CustomerHomeScreen extends StatelessWidget {
   const CustomerHomeScreen({super.key});
