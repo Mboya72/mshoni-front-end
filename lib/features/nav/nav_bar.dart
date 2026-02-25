@@ -3,7 +3,7 @@ import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:mshoni/features/customer/screens/customer_home_screen.dart';
 import 'package:mshoni/features/customer/screens/customer_message_screen.dart';
 import 'package:mshoni/features/customer/screens/customer_tailors_screen.dart';
-import 'package:mshoni/features/customer/screens/customer_projects_screen.dart'; // new
+import 'package:mshoni/features/customer/screens/customer_projects_screen.dart';
 import 'package:mshoni/features/customer/screens/customer_profile_screen.dart';
 import 'package:mshoni/features/tailor/screens/tailor_home_screen.dart';
 import 'package:mshoni/features/tailor/screens/tailor_message_screen.dart';
@@ -11,6 +11,7 @@ import 'package:mshoni/features/tailor/screens/tailor_customers_screen.dart';
 import 'package:mshoni/features/tailor/screens/tailor_projects_screen.dart';
 import 'package:mshoni/features/tailor/screens/tailor_profile_screen.dart';
 import '../../core/theme/app_colors.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 enum UserRole { customer, tailor }
 
@@ -31,68 +32,73 @@ class _DynamicNavBarState extends State<DynamicNavBar> {
   final GlobalKey<CurvedNavigationBarState> _navKey = GlobalKey();
 
   late List<Widget> _pages;
-  late List<Widget> _navItems;
-  late String _title;
 
   @override
   void initState() {
     super.initState();
 
     if (widget.role == UserRole.customer) {
-      _title = 'Customer Home';
-
-      _pages = [
-        const CustomerHomeScreen(),
-        const CustomerMessageScreen(),
-        const CustomerTailorsScreen(),
-        const CustomerProjectsScreen(), // new
-        const CustomerProfileScreen(),
-      ];
-
-      _navItems = const [
-        Icon(Icons.dashboard, size: 28, color: Colors.white),
-        Icon(Icons.message, size: 28, color: Colors.white),
-        Icon(Icons.people, size: 28, color: Colors.white),
-        Icon(Icons.work, size: 28, color: Colors.white), // projects icon
-        Icon(Icons.person, size: 28, color: Colors.white),
+      _pages = const [
+        CustomerHomeScreen(),
+        CustomerMessageScreen(),
+        CustomerTailorsScreen(),
+        CustomerProjectsScreen(),
+        CustomerProfileScreen(),
       ];
     } else {
-      _title = 'Tailor Home';
-
-      _pages = [
-        const TailorHomeScreen(),
-        const TailorMessageScreen(),
-        const TailorCustomersScreen(),
-        const TailorProjectsScreen(),
-        const TailorProfileScreen(),
-      ];
-
-      _navItems = const [
-        Icon(Icons.dashboard, size: 28, color: Colors.white),
-        Icon(Icons.message, size: 28, color: Colors.white),
-        Icon(Icons.people, size: 28, color: Colors.white),
-        Icon(Icons.work, size: 28, color: Colors.white),
-        Icon(Icons.person, size: 28, color: Colors.white),
+      _pages = const [
+        TailorHomeScreen(),
+        TailorMessageScreen(),
+        TailorCustomersScreen(),
+        TailorProjectsScreen(),
+        TailorProfileScreen(),
       ];
     }
   }
+
+  // ✅ Outline icons with active state
+  List<Widget> _buildNavItems() {
+    Widget buildSvgIcon(String assetPath, int index) {
+      return AnimatedScale(
+        scale: _currentIndex == index ? 1.2 : 1.0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+        child: SizedBox(
+          height: 30,
+          width: 30,
+          child: Center(
+            child: SvgPicture.asset(
+              assetPath,
+              height: 22,
+              width: 22,
+              fit: BoxFit.contain,
+              colorFilter: ColorFilter.mode(
+                _currentIndex == index
+                    ? AppColors.primaryColor
+                    : Colors.grey,
+                BlendMode.srcIn,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return [
+      buildSvgIcon('assets/icons/home.svg', 0),
+      buildSvgIcon('assets/icons/message.svg', 1),
+      buildSvgIcon('assets/icons/listings.svg', 2),
+      buildSvgIcon('assets/icons/projects.svg', 3),
+      buildSvgIcon('assets/icons/profile.svg', 4),
+    ];
+  }
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
-
-      appBar: AppBar(
-        title: Text(
-          _title,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        backgroundColor: AppColors.primaryColor,
-        elevation: 0,
-      ),
+      extendBody: true, // ✅ allows transparent curved effect
 
       body: _pages[_currentIndex],
 
@@ -100,12 +106,12 @@ class _DynamicNavBarState extends State<DynamicNavBar> {
         key: _navKey,
         index: _currentIndex,
         height: 60,
-        backgroundColor: AppColors.backgroundColor,
-        color: AppColors.primaryColor,
-        buttonBackgroundColor: AppColors.primaryColor,
+        backgroundColor: Colors.transparent,
+        color: Colors.white, // ✅ navbar background
+        buttonBackgroundColor: Colors.white, // ✅ center circle white
         animationDuration: const Duration(milliseconds: 500),
         animationCurve: Curves.easeOutCubic,
-        items: _navItems,
+        items: _buildNavItems(),
         onTap: (index) {
           setState(() {
             _currentIndex = index;

@@ -1,5 +1,5 @@
 # =========================
-# Miscellaneous
+# Miscellaneous & OS
 # =========================
 *.class
 *.log
@@ -13,20 +13,20 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
+# Added: Ignore thumbnails and desktop metadata
+Thumbs.db
+desktop.ini
 
 # =========================
-# IntelliJ / Android Studio
+# IDEs (IntelliJ / Android Studio / VS Code)
 # =========================
 *.iml
 *.ipr
 *.iws
 .idea/
-
-# =========================
-# VS Code (Optional)
-# =========================
-# Uncomment if you DO NOT want VS Code settings tracked
-#.vscode/
+.vscode/
+# Added: Ignore specific VS Code workspace files
+*.code-workspace
 
 # =========================
 # Flutter / Dart / Pub
@@ -39,21 +39,19 @@ migrate_working_dir/
 .packages
 .pub-cache/
 .pub/
-/build/
+build/
 /coverage/
+# Added: Ignore public folder in web if using certain builders
+# /web/index.html (Uncomment only if you generate this via script)
 
 # =========================
-# Symbolication
+# Symbolication & Obfuscation
 # =========================
 app.*.symbols
-
-# =========================
-# Obfuscation
-# =========================
 app.*.map.json
 
 # =========================
-# Android Build Outputs
+# Android Build & Credentials
 # =========================
 /android/app/debug
 /android/app/profile
@@ -61,33 +59,34 @@ app.*.map.json
 /android/.gradle/
 /android/local.properties
 /android/captures/
+# Added: Keep your keys and secrets out of Git!
+*.keystore
+*.jks
+/android/key.properties
 
 # =========================
-# iOS Build Outputs
+# iOS / macOS Build & Pods
 # =========================
+/ios/Flutter/Generated.xcconfig
+/ios/Flutter/flutter_export_environment.sh
 /ios/Flutter/Flutter.framework
 /ios/Flutter/Flutter.podspec
 /ios/Pods/
 /ios/.symlinks/
 /ios/Runner.xcworkspace/
 /ios/build/
-
-# =========================
-# macOS Build Outputs
-# =========================
-/macos/Flutter/Flutter.framework
+/macos/Flutter/ephemeral/
 /macos/Pods/
 /macos/build/
+# Added: CocoaPods specific
+ServiceDeviceHandler
+Podfile.lock
 
 # =========================
-# Windows Build Outputs
+# Desktop (Windows / Linux)
 # =========================
 /windows/flutter/ephemeral/
 /windows/build/
-
-# =========================
-# Linux Build Outputs
-# =========================
 /linux/flutter/ephemeral/
 /linux/build/
 
@@ -97,14 +96,20 @@ app.*.map.json
 /build/web/
 
 # =========================
-# Firebase (if used)
+# Firebase & Secrets
 # =========================
 firebase-debug.log
 firebase-debug.*.log
 firebase-export-*/
-
-# =========================
-# Environment Files
-# =========================
 .env
 .env.*
+# Added: If you use Shorebird (code push)
+.shorebird/
+
+# =========================
+# Exceptions (Keep these)
+# =========================
+# Don't ignore these if they are within your project
+!default.mode1v3
+!default.pbxuser
+!default.perspectivev3
