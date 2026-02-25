@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:mshoni/features/customer/screens/customer_home_screen.dart';
+import 'package:mshoni/features/customer/screens/customer_chatList_screen.dart';
 import 'package:mshoni/features/customer/screens/customer_message_screen.dart';
-import 'package:mshoni/features/customer/screens/customer_tailors_screen.dart';
 import 'package:mshoni/features/customer/screens/customer_projects_screen.dart';
 import 'package:mshoni/features/customer/screens/customer_profile_screen.dart';
 import 'package:mshoni/features/tailor/screens/tailor_home_screen.dart';
@@ -12,6 +12,8 @@ import 'package:mshoni/features/tailor/screens/tailor_projects_screen.dart';
 import 'package:mshoni/features/tailor/screens/tailor_profile_screen.dart';
 import '../../core/theme/app_colors.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+
+import '../customer/screens/customer_tailors_screen.dart';
 
 enum UserRole { customer, tailor }
 
@@ -98,25 +100,32 @@ class _DynamicNavBarState extends State<DynamicNavBar> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
-      extendBody: true, // ✅ allows transparent curved effect
+      extendBody: true, // Required to show content behind the bar
 
       body: _pages[_currentIndex],
 
-      bottomNavigationBar: CurvedNavigationBar(
-        key: _navKey,
-        index: _currentIndex,
-        height: 60,
-        backgroundColor: Colors.transparent,
-        color: Colors.white, // ✅ navbar background
-        buttonBackgroundColor: Colors.white, // ✅ center circle white
-        animationDuration: const Duration(milliseconds: 500),
-        animationCurve: Curves.easeOutCubic,
-        items: _buildNavItems(),
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+      bottomNavigationBar: Theme(
+        data: Theme.of(context).copyWith(
+          // This removes the solid block color inside the "curve"
+          canvasColor: Colors.transparent,
+        ),
+        child: CurvedNavigationBar(
+          key: _navKey,
+          index: _currentIndex,
+          height: 60,
+          // Removes the color in the outer corners (the left/right edges)
+          backgroundColor: Colors.transparent,
+          color: Colors.white,
+          buttonBackgroundColor: Colors.white,
+          animationDuration: const Duration(milliseconds: 500),
+          animationCurve: Curves.easeOutCubic,
+          items: _buildNavItems(),
+          onTap: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+          },
+        ),
       ),
     );
   }

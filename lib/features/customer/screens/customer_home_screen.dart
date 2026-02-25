@@ -1,33 +1,39 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Necessary for the phone's top bar colors
+import 'package:flutter/services.dart';
 
 class CustomerHomeScreen extends StatelessWidget {
   const CustomerHomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Premium Off-white/Slate color scheme
     const Color scaffoldBg = Color(0xFFE9EEF5);
     const Color textMain = Color(0xFF1A1D21);
     const Color accentBlue = Color(0xFF4B84F1);
     const Color emeraldGreen = Color(0xFF2ECC71);
 
-    // AnnotatedRegion fixes the phone's top status bar (battery/clock visibility)
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark, // Makes icons dark so they show on light bg
-        statusBarBrightness: Brightness.light,    // For iOS compatibility
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
       ),
       child: Scaffold(
         backgroundColor: scaffoldBg,
-        extendBodyBehindAppBar: true, // Content flows under the transparent AppBar
+        // extendBody ensures the body flows behind the CurvedNavigationBar
+        extendBody: true,
+        extendBodyBehindAppBar: true,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
           scrolledUnderElevation: 0,
           automaticallyImplyLeading: false,
-          toolbarHeight: 90,
+          centerTitle: false,
+          systemOverlayStyle: const SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.dark,
+            statusBarBrightness: Brightness.light,
+          ),
+          toolbarHeight: 80,
           title: Row(
             children: [
               const CircleAvatar(
@@ -38,8 +44,8 @@ class CustomerHomeScreen extends StatelessWidget {
               const SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text("Welcome back,",
+                children: [
+                  const Text("Welcome back,",
                       style: TextStyle(color: Colors.black45, fontSize: 13, fontWeight: FontWeight.w500)),
                   Text("Elvindio 👋",
                       style: TextStyle(color: textMain, fontSize: 18, fontWeight: FontWeight.bold)),
@@ -54,68 +60,71 @@ class CustomerHomeScreen extends StatelessWidget {
             ),
           ],
         ),
-        body: SingleChildScrollView(
-          // Top padding of 120 ensures content starts below the AppBar/Status Bar
-          padding: const EdgeInsets.only(left: 20, right: 20, top: 120, bottom: 40),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // --- FINANCIAL SECTION ---
-              const Text("Financial Journey",
-                  style: TextStyle(color: textMain, fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 15),
-              const _FinancialHeroCard(),
+        // Replaced SafeArea with Container
+        body: Container(
+          width: double.infinity,
+          height: double.infinity,
+          color: Colors.transparent, // Keeps it colorless so Scaffold bg shows through
+          child: SingleChildScrollView(
+            // top: 110 handles the AppBar, bottom: 100 handles the CurvedNavBar
+            padding: const EdgeInsets.only(left: 20, right: 20, top: 110, bottom: 100),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text("Financial Journey",
+                    style: TextStyle(color: textMain, fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 15),
+                const _FinancialHeroCard(),
 
-              const SizedBox(height: 30),
+                const SizedBox(height: 30),
 
-              // --- STATISTICS GRID ---
-              const Text("Project Progress",
-                  style: TextStyle(color: textMain, fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 15),
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                crossAxisSpacing: 15,
-                mainAxisSpacing: 15,
-                childAspectRatio: 1.1,
-                children: const [
-                  _StatGridCard(label: "Active Projects", value: "04", icon: Icons.architecture, color: accentBlue),
-                  _StatGridCard(label: "Completed", value: "12", icon: Icons.verified_outlined, color: emeraldGreen),
-                  _StatGridCard(label: "Total Spent", value: "\$4.2k", icon: Icons.payments_outlined, color: Colors.orange),
-                  _StatGridCard(label: "Pending", value: "02", icon: Icons.hourglass_empty, color: Colors.redAccent),
-                ],
-              ),
+                const Text("Project Progress",
+                    style: TextStyle(color: textMain, fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 5),
+                GridView.count(
+                  padding: EdgeInsets.zero,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 15,
+                  mainAxisSpacing: 15,
+                  childAspectRatio: 1.1,
+                  children: const [
+                    _StatGridCard(label: "Active Projects", value: "04", icon: Icons.architecture, color: accentBlue),
+                    _StatGridCard(label: "Completed", value: "12", icon: Icons.verified_outlined, color: emeraldGreen),
+                    _StatGridCard(label: "Total Spent", value: "\$4.2k", icon: Icons.payments_outlined, color: Colors.orange),
+                    _StatGridCard(label: "Pending", value: "02", icon: Icons.hourglass_empty, color: Colors.redAccent),
+                  ],
+                ),
 
-              const SizedBox(height: 30),
+                const SizedBox(height: 30),
 
-              // --- ACTIVITY SECTION ---
-              const Text("Recent Activity",
-                  style: TextStyle(color: textMain, fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 15),
-              _buildOrderTile("Wedding Suit", "Tailoring Phase", 0.75, accentBlue),
-              _buildOrderTile("Office Blazer", "Quality Check", 0.90, emeraldGreen),
-            ],
+                const Text("Recent Activity",
+                    style: TextStyle(color: textMain, fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 15),
+                _buildOrderTile("Wedding Suit", "Tailoring Phase", 0.75, accentBlue),
+                _buildOrderTile("Office Blazer", "Quality Check", 0.90, emeraldGreen),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  // Helper for AppBar Notification Icon
+  // --- BUILD HELPERS ---
   Widget _buildTopIcon(IconData icon) {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.white,
         shape: BoxShape.circle,
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
       ),
       child: Icon(icon, color: Colors.black87, size: 22),
     );
   }
 
-  // Helper for Recent Activity Rows
   Widget _buildOrderTile(String title, String status, double progress, Color color) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -123,7 +132,7 @@ class CustomerHomeScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15)],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 15)],
       ),
       child: Row(
         children: [
@@ -131,22 +140,25 @@ class CustomerHomeScreen extends StatelessWidget {
             alignment: Alignment.center,
             children: [
               SizedBox(
-                height: 45, width: 45,
+                height: 45,
+                width: 45,
                 child: CircularProgressIndicator(
                   value: progress,
                   strokeWidth: 4,
                   color: color,
-                  backgroundColor: color.withOpacity(0.1),
+                  backgroundColor: color.withValues(alpha: 0.1),
                 ),
               ),
-              Text("${(progress * 100).toInt()}%", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+              Text("${(progress * 100).toInt()}%",
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(width: 16),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1A1D21))),
+              Text(title,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1A1D21))),
               Text(status, style: const TextStyle(color: Colors.black45, fontSize: 12)),
             ],
           ),
@@ -158,7 +170,8 @@ class CustomerHomeScreen extends StatelessWidget {
   }
 }
 
-// --- SUB-WIDGET: FINANCIAL HERO ---
+// --- SUB-WIDGETS ---
+
 class _FinancialHeroCard extends StatelessWidget {
   const _FinancialHeroCard();
 
@@ -176,7 +189,7 @@ class _FinancialHeroCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF4B84F1).withOpacity(0.3),
+            color: const Color(0xFF4B84F1).withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           )
@@ -190,11 +203,10 @@ class _FinancialHeroCard extends StatelessWidget {
           const Text("\$1,240.00",
               style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.bold)),
           const SizedBox(height: 25),
-
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(22),
             ),
             child: Row(
@@ -227,7 +239,6 @@ class _FinancialHeroCard extends StatelessWidget {
   }
 }
 
-// --- SUB-WIDGET: STATISTICS GRID CARD ---
 class _StatGridCard extends StatelessWidget {
   final String label;
   final String value;
@@ -248,18 +259,24 @@ class _StatGridCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(28),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 15, offset: const Offset(0, 5))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 15,
+              offset: const Offset(0, 5))
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
             child: Icon(icon, color: color, size: 20),
           ),
           const Spacer(),
-          Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF1A1D21))),
+          Text(value,
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF1A1D21))),
           Text(label, style: const TextStyle(color: Colors.black45, fontSize: 12, fontWeight: FontWeight.w500)),
         ],
       ),
