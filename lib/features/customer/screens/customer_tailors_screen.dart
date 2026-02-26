@@ -105,6 +105,9 @@ class _CustomerTailorsScreenState extends State<CustomerTailorsScreen> {
           ),
 
           const SliverToBoxAdapter(child: SizedBox(height: 30)),
+          const SliverPadding(
+            padding: EdgeInsets.only(bottom: 50), // Adjust this value based on your Nav height
+          ),
         ],
       ),
     );
