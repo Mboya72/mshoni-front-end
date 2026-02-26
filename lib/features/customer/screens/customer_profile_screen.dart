@@ -5,10 +5,23 @@ class CustomerProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text(
-        "Profile",
-        style: TextStyle(fontSize: 24),
+    return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: const Text('Profile'),
+      ),
+      // Removed 'const' here because AssetImage is evaluated at runtime
+      body: SingleChildScrollView(
+        child: Column(
+          children: const [
+            Center(
+              child: CircleAvatar(
+                radius: 50, // Set a size so it's visible
+                // backgroundImage: AssetImage('assets/images/user.png'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
