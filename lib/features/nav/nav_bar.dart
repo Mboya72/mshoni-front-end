@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:mshoni/features/customer/screens/customer_home_screen.dart';
+import 'package:mshoni/features/customer/screens/customer_chatList_screen.dart';
 import 'package:mshoni/features/customer/screens/customer_message_screen.dart';
 import 'package:mshoni/features/customer/screens/customer_projects_screen.dart';
 import 'package:mshoni/features/customer/screens/customer_profile_screen.dart';
