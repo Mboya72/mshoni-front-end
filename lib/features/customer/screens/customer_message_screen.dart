@@ -1,10 +1,24 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_colors.dart';
 
 // --- PREMIUM PALETTE ---
-const Color scaffoldBg = Color(0xFFF8F9FB); // Lighter background for that clean look
+const Color scaffoldBg = Color(0xFFF1F5F9); // The "darker than white" background
 const Color textMain = Color(0xFF1A1D21);
-const Color accentBlue = Color(0xFF3B82F6); // Vibrant Blue from the image
-const Color lightGrey = Color(0xFFE5E7EB);
+const Color accentBlue = Color(0xFF3B82F6);
+
+class ChatData {
+  final String name, message, time;
+  final bool isUnread;
+  final int unreadCount;
+
+  ChatData({
+    required this.name,
+    required this.message,
+    required this.time,
+    required this.isUnread,
+    required this.unreadCount,
+  });
+}
 
 class CustomerMessageScreen extends StatefulWidget {
   const CustomerMessageScreen({super.key});
@@ -14,63 +28,67 @@ class CustomerMessageScreen extends StatefulWidget {
 }
 
 class _CustomerMessageScreenState extends State<CustomerMessageScreen> {
+  // 1. ACTIVE TAB STATE
+  String activeTab = "All";
+
+  // 2. DATA LIST
+  final List<ChatData> allChats = [
+    ChatData(name: "Aldira Gans", message: "Why did you do that?", time: "15:20 PM", isUnread: true, unreadCount: 1),
+    ChatData(name: "Reza Eji", message: "Small business, a coffee shop.", time: "14:10 PM", isUnread: true, unreadCount: 2),
+    ChatData(name: "John Master", message: "Your suit is ready for pickup!", time: "12:00 PM", isUnread: false, unreadCount: 0),
+    ChatData(name: "Sarah Stylist", message: "I sent the fabric samples.", time: "Yesterday", isUnread: false, unreadCount: 0),
+    ChatData(name: "Ahmad Tailor", message: "Can we move the fitting?", time: "Monday", isUnread: true, unreadCount: 5),
+  ];
+
+  // 3. FILTER LOGIC
+  List<ChatData> get filteredChats {
+    if (activeTab == "Unread") return allChats.where((c) => c.isUnread).toList();
+    if (activeTab == "Read") return allChats.where((c) => !c.isUnread).toList();
+    return allChats;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      extendBody: true,
+      backgroundColor: AppColors.backgroundColor, // Entire screen background
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
         automaticallyImplyLeading: false,
+        backgroundColor: scaffoldBg,
+        elevation: 0,
+        centerTitle: false,
         title: const Text(
           "Messages",
           style: TextStyle(color: textMain, fontWeight: FontWeight.bold, fontSize: 26),
         ),
         actions: [
           IconButton(icon: const Icon(Icons.search, color: textMain), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.sort, color: textMain), onPressed: () {}),
         ],
-      ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 90), // Sits above the CurvedNavBar
-        child: FloatingActionButton(
-          backgroundColor: Colors.white,
-          elevation: 4,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          onPressed: () {},
-          child: const Icon(Icons.add, color: accentBlue, size: 30),
-        ),
       ),
       body: Column(
         children: [
-          // --- TAB FILTER SECTION ---
+          // --- FUNCTIONAL TABS ---
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildTab("All", true, count: 3),
-                _buildTab("Unread", false),
-                _buildTab("Read", false),
+                _buildTab("All", allChats.length),
+                const SizedBox(width: 24),
+                _buildTab("Unread", allChats.where((c) => c.isUnread).length),
+                const SizedBox(width: 24),
+                _buildTab("Read"),
               ],
             ),
           ),
-          const Divider(height: 1),
 
           // --- CHAT LIST ---
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.only(bottom: 110),
-              itemCount: 8,
+            child: filteredChats.isEmpty
+                ? Center(child: Text("No $activeTab messages", style: const TextStyle(color: Colors.grey)))
+                : ListView.builder(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+              itemCount: filteredChats.length,
               itemBuilder: (context, index) {
-                return _ChatTile(
-                  name: index == 0 ? "Aldira Gans" : "Reza Eji",
-                  message: index == 0 ? "Why did you do that?" : "Small business, a coffee shop.",
-                  time: "15:20 PM",
-                  isUnread: index < 2,
-                  unreadCount: index + 1,
-                );
+                return _ChatTile(chat: filteredChats[index]);
               },
             ),
           ),
@@ -79,174 +97,146 @@ class _CustomerMessageScreenState extends State<CustomerMessageScreen> {
     );
   }
 
-  Widget _buildTab(String label, bool isActive, {int? count}) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                color: isActive ? accentBlue : Colors.grey,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
-            ),
-            if (count != null) ...[
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(color: accentBlue, borderRadius: BorderRadius.circular(10)),
-                child: Text("$count", style: const TextStyle(color: Colors.white, fontSize: 10)),
-              ),
-            ]
-          ],
-        ),
-        const SizedBox(height: 8),
-        if (isActive)
-          Container(height: 2, width: 60, color: accentBlue)
-        else
-          Container(height: 2, width: 60, color: Colors.transparent),
-      ],
-    );
-  }
-}
-
-// --- CHAT TILE COMPONENT ---
-class _ChatTile extends StatelessWidget {
-  final String name, message, time;
-  final bool isUnread;
-  final int unreadCount;
-
-  const _ChatTile({required this.name, required this.message, required this.time, required this.isUnread, required this.unreadCount});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => _DetailChat(name: name))),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      leading: CircleAvatar(
-        radius: 26,
-        backgroundImage: NetworkImage('https://i.pravatar.cc/150?u=$name'),
-      ),
-      title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-      subtitle: Text(message, maxLines: 1, overflow: TextOverflow.ellipsis),
-      trailing: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
+  // --- TAB BUILDER ---
+  Widget _buildTab(String label, [int? count]) {
+    bool isActive = activeTab == label;
+    return GestureDetector(
+      onTap: () => setState(() => activeTab = label),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(time, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-          const SizedBox(height: 5),
-          if (isUnread)
-            CircleAvatar(radius: 10, backgroundColor: accentBlue, child: Text("$unreadCount", style: const TextStyle(color: Colors.white, fontSize: 10)))
-          else
-            const Icon(Icons.done_all, size: 16, color: accentBlue),
-        ],
-      ),
-    );
-  }
-}
-
-// --- DETAIL CHAT SCREEN ---
-class _DetailChat extends StatelessWidget {
-  final String name;
-  const _DetailChat({required this.name});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back_ios, color: accentBlue, size: 20), onPressed: () => Navigator.pop(context)),
-        title: Row(
-          children: [
-            CircleAvatar(radius: 18, backgroundImage: NetworkImage('https://i.pravatar.cc/150?u=$name')),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, style: const TextStyle(color: textMain, fontSize: 16, fontWeight: FontWeight.bold)),
-                const Text("Online", style: TextStyle(color: accentBlue, fontSize: 12)),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(icon: const Icon(Icons.videocam_outlined, color: accentBlue), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.phone_outlined, color: accentBlue), onPressed: () {}),
-        ],
-      ),
-      body: Column(
-        children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 20),
-            child: Text("Today", style: TextStyle(color: Colors.grey, fontSize: 12)),
-          ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: [
-                _bubble("Fiqrih! How are you? It's been a long time since we last met.", false, "10:58 PM"),
-                _bubble("Oh, hi Reza! I have got a new job now and is going great. How about you?", true, "11:06 AM"),
-                _bubble("Small business, a coffee shop.", false, "12:09 PM"),
-              ],
-            ),
-          ),
-          _inputArea(),
-        ],
-      ),
-    );
-  }
-
-  Widget _bubble(String text, bool isMe, String time) {
-    return Column(
-      crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-      children: [
-        Container(
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          padding: const EdgeInsets.all(16),
-          constraints: const BoxConstraints(maxWidth: 280),
-          decoration: BoxDecoration(
-            color: isMe ? accentBlue : const Color(0xFFF3F4F6),
-            borderRadius: BorderRadius.circular(20).copyWith(
-              bottomRight: isMe ? const Radius.circular(0) : const Radius.circular(20),
-              bottomLeft: isMe ? const Radius.circular(20) : const Radius.circular(0),
-            ),
-          ),
-          child: Text(text, style: TextStyle(color: isMe ? Colors.white : textMain, height: 1.4)),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 12, top: 2),
-          child: Text(time, style: const TextStyle(color: Colors.grey, fontSize: 10)),
-        ),
-      ],
-    );
-  }
-
-  Widget _inputArea() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 40),
-      color: Colors.white,
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(color: const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(24)),
-              child: const TextField(
-                decoration: InputDecoration(
-                  hintText: "Type a Message...",
-                  border: InputBorder.none,
-                  suffixIcon: Icon(Icons.camera_alt_outlined, color: Colors.grey),
+          Row(
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: isActive ? accentBlue : Colors.grey[600],
+                  fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+                  fontSize: 15,
                 ),
               ),
+              if (count != null && count > 0) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: isActive ? accentBlue : Colors.grey[300],
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    "$count",
+                    style: TextStyle(
+                        color: isActive ? Colors.white : textMain,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ]
+            ],
+          ),
+          const SizedBox(height: 4),
+          // Animated indicator
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            height: 3,
+            width: isActive ? 20 : 0,
+            decoration: BoxDecoration(
+              color: accentBlue,
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const SizedBox(width: 10),
-          const CircleAvatar(backgroundColor: accentBlue, child: Icon(Icons.mic, color: Colors.white)),
         ],
+      ),
+    );
+  }
+}
+
+// --- CHAT TILE ---
+class _ChatTile extends StatelessWidget {
+  final ChatData chat;
+  const _ChatTile({required this.chat});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white, // White tile stands out against grey bg
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ListTile(
+        onTap: () {}, // Detail navigation
+        contentPadding: const EdgeInsets.all(12),
+        leading: Stack(
+          children: [
+            CircleAvatar(
+              radius: 28,
+              backgroundImage: NetworkImage('https://i.pravatar.cc/150?u=${chat.name}'),
+            ),
+            if (chat.isUnread)
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: accentBlue,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        title: Text(
+          chat.name,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            chat.message,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: chat.isUnread ? textMain : Colors.grey,
+              fontWeight: chat.isUnread ? FontWeight.w500 : FontWeight.normal,
+            ),
+          ),
+        ),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              chat.time,
+              style: TextStyle(
+                fontSize: 11,
+                color: chat.isUnread ? accentBlue : Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (chat.isUnread)
+              CircleAvatar(
+                radius: 10,
+                backgroundColor: accentBlue,
+                child: Text(
+                  "${chat.unreadCount}",
+                  style: const TextStyle(color: Colors.white, fontSize: 10),
+                ),
+              )
+            else
+              const Icon(Icons.done_all, size: 18, color: accentBlue),
+          ],
+        ),
       ),
     );
   }
