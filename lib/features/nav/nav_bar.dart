@@ -13,7 +13,7 @@ import 'package:mshoni/features/tailor/screens/tailor_profile_screen.dart';
 import '../../core/theme/app_colors.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-import '../customer/screens/customer_tailors_screen.dart';
+import '../customer/screens/tailor_marketplace/customer_tailors_screen.dart';
 
 enum UserRole { customer, tailor }
 

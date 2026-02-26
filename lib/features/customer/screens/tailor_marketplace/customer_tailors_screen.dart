@@ -1,5 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'tailor_profile_screen.dart';
+import 'product_detail_screen.dart';
+import 'customer_cart_screen.dart';
+import 'customer_liked_screen.dart';
 
 enum ViewMode { hire, buy }
 
@@ -16,7 +20,6 @@ class _CustomerTailorsScreenState extends State<CustomerTailorsScreen> {
   late Timer _timer;
   ViewMode _currentMode = ViewMode.hire;
 
-  // Branding Palette
   static const Color accentBlue = Color(0xFF4B84F1);
   static const Color scaffoldBg = Color(0xFFF8F9FA);
   static const Color textMain = Color(0xFF1A1D21);
@@ -65,25 +68,13 @@ class _CustomerTailorsScreenState extends State<CustomerTailorsScreen> {
       backgroundColor: scaffoldBg,
       body: CustomScrollView(
         slivers: [
-          // 1. Updated Brand Header (No Profile/Photo)
-          SliverToBoxAdapter(child: _buildBrandHeader()),
-
-          // 2. Search & Filter Bar
+          SliverToBoxAdapter(child: _buildBrandHeader(context)), // Pass context for navigation
           SliverToBoxAdapter(child: _buildSearchBar()),
-
-          // 3. Centered Banner Box
           SliverToBoxAdapter(child: _buildBannerSlider()),
-
-          // 4. Mode Toggle (Hire vs Buy)
           SliverToBoxAdapter(child: _buildModeToggle()),
-
-          // 5. Dynamic Categories
           SliverToBoxAdapter(child: _buildCategoryList()),
-
-          // 6. View More Button
           SliverToBoxAdapter(child: _buildViewMoreButton()),
 
-          // 7. Section Titles
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             sliver: SliverToBoxAdapter(
@@ -98,24 +89,21 @@ class _CustomerTailorsScreenState extends State<CustomerTailorsScreen> {
             ),
           ),
 
-          // 8. Content Grid or List
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             sliver: _currentMode == ViewMode.hire ? _buildTailorList() : _buildProductGrid(),
           ),
 
           const SliverToBoxAdapter(child: SizedBox(height: 30)),
-          const SliverPadding(
-            padding: EdgeInsets.only(bottom: 50), // Adjust this value based on your Nav height
-          ),
+          const SliverPadding(padding: EdgeInsets.only(bottom: 80)),
         ],
       ),
     );
   }
 
-  // --- UI SECTIONS ---
+  // --- UPDATED HEADER WITH LINKS ---
 
-  Widget _buildBrandHeader() {
+  Widget _buildBrandHeader(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 60, 16, 10),
       child: Row(
@@ -132,9 +120,17 @@ class _CustomerTailorsScreenState extends State<CustomerTailorsScreen> {
           ),
           Row(
             children: [
-              _topIconButton(Icons.shopping_cart_outlined),
+              // CART LINK
+              GestureDetector(
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CustomerCartScreen())),
+                child: _topIconButton(Icons.shopping_cart_outlined),
+              ),
               const SizedBox(width: 8),
-              _topIconButton(Icons.favorite_outline),
+              // LIKED LINK
+              GestureDetector(
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CustomerLikedScreen())),
+                child: _topIconButton(Icons.favorite_outline),
+              ),
             ],
           ),
         ],
@@ -142,6 +138,7 @@ class _CustomerTailorsScreenState extends State<CustomerTailorsScreen> {
     );
   }
 
+  // Rest of your helper methods (unchanged)...
   Widget _topIconButton(IconData icon) {
     return Container(
       padding: const EdgeInsets.all(10),
@@ -360,33 +357,43 @@ class _CustomerTailorsScreenState extends State<CustomerTailorsScreen> {
           childAspectRatio: 0.8
       ),
       delegate: SliverChildBuilderDelegate(
-            (context, i) => Container(
-          decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.grey.shade100)
+            (context, i) => GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ProductDetailScreen()),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                  child: ClipRRect(
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                      child: Container(color: Colors.grey.shade50, width: double.infinity, child: const Icon(Icons.image, color: Colors.grey, size: 40))
-                  )
-              ),
-              const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("Premium Shirt", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      SizedBox(height: 4),
-                      Text("\$45.00", style: TextStyle(color: accentBlue, fontWeight: FontWeight.w600)),
-                    ],
-                  )
-              ),
-            ],
+          child: Container(
+            decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.grey.shade100)
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                    child: ClipRRect(
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                        child: Container(
+                            color: Colors.grey.shade50,
+                            width: double.infinity,
+                            child: const Icon(Icons.image, color: Colors.grey, size: 40)
+                        )
+                    )
+                ),
+                const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Premium Shirt", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        SizedBox(height: 4),
+                        Text("\$45.00", style: TextStyle(color: accentBlue, fontWeight: FontWeight.w600)),
+                      ],
+                    )
+                ),
+              ],
+            ),
           ),
         ),
         childCount: 4,
@@ -397,28 +404,34 @@ class _CustomerTailorsScreenState extends State<CustomerTailorsScreen> {
   Widget _buildTailorList() {
     return SliverList(
       delegate: SliverChildBuilderDelegate(
-            (context, i) => Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(15),
-          decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.grey.shade100)
+            (context, i) => GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const TailorProfileScreen()),
           ),
-          child: Row(
-            children: [
-              const CircleAvatar(radius: 28, backgroundColor: scaffoldBg, child: Icon(Icons.person, color: Colors.grey)),
-              const SizedBox(width: 15),
-              const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("Master Artisan", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    Text("15 years experience", style: TextStyle(fontSize: 12, color: Colors.grey))
-                  ]
-              ),
-              const Spacer(),
-              const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
-            ],
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.grey.shade100)
+            ),
+            child: Row(
+              children: [
+                const CircleAvatar(radius: 28, backgroundColor: scaffoldBg, child: Icon(Icons.person, color: Colors.grey)),
+                const SizedBox(width: 15),
+                const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Master Artisan", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text("15 years experience", style: TextStyle(fontSize: 12, color: Colors.grey))
+                    ]
+                ),
+                const Spacer(),
+                const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+              ],
+            ),
           ),
         ),
         childCount: 4,
