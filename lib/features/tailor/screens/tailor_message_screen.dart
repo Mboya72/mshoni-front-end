@@ -49,15 +49,14 @@ class _TailorMessageScreenState extends State<TailorMessageScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: skyScaffoldBg,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: skyScaffoldBg,
-        elevation: 0,
-        centerTitle: false,
-        systemOverlayStyle: const SystemUiOverlayStyle(
-          statusBarIconBrightness: Brightness.dark,
-        ),
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          systemOverlayStyle: const SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.dark,
+          ),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
         title: const Text(
           "Client Chats",
           style: TextStyle(color: textMain, fontWeight: FontWeight.bold, fontSize: 26),
