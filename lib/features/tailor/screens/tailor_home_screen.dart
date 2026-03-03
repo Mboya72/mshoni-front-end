@@ -92,12 +92,24 @@ class _TailorHomeScreenState extends State<TailorHomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text("Workshop Mode,",
-                      style: TextStyle(color: Colors.black45, fontSize: 12, fontWeight: FontWeight.bold)),
+                  const Text(
+                      "Welcome back,",
+                      style: TextStyle(
+                        color: Colors.black45,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5, // Added for a cleaner UI feel
+                      )
+                  ),
                   Text(
-                    "Master ${_capitalize(_userName)} 🧵",
+                    "${_capitalize(_userName)} 👋", // Added emoji here for a friendly vibe
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: textMain, fontSize: 16, fontWeight: FontWeight.bold),
+                    maxLines: 1,
+                    style: const TextStyle(
+                      color: Color(0xFF1A1D21), // Replaced textMain with your specific hex
+                      fontSize: 18, // Slightly larger for better hierarchy
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),

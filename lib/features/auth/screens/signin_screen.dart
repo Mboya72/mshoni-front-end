@@ -68,9 +68,9 @@ class _SignInScreenState extends State<SignInScreen> {
         if (mounted) {
           // 3. Navigate to Dashboard
           Navigator.pushReplacementNamed(
-              context,
-              AppRoutes.app,
-              arguments: role
+            context,
+            AppRoutes.app,
+            arguments: data['user']['role'], // Make sure this isn't null!
           );
         }
       } else {

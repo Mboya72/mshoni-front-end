@@ -53,10 +53,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
       if (mounted) {
         if (success) {
-          // Success: Navigate to the main app/home
-          Navigator.pushReplacementNamed(context, AppRoutes.app);
+          // ✅ Success: Pass the role to the route so it knows which dashboard to show
+          Navigator.pushReplacementNamed(
+            context,
+            AppRoutes.app,
+            arguments: widget.role.toLowerCase(), // This sends 'tailor' or 'customer'
+          );
         } else {
-          // Failure: Likely a connection or validation error from Django
           _showError("Sign up failed. Check your connection or if the user already exists.");
         }
       }
