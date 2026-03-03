@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; // Add this
+// Removed Supabase import since we are using local Django only
+import '../../../../core/services/auth_service.dart';
 import '../widgets/social_auth_buttons.dart';
 import '../../../core/routes/app_routes.dart';
 
@@ -14,66 +15,69 @@ class SignUpScreen extends StatefulWidget {
 
 class _SignUpScreenState extends State<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _authService = AuthService();
+
   bool _obscurePassword = true;
-  bool _isLoading = false; // Added to handle loading state
+  bool _isLoading = false;
 
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  // 1. Social Auth Logic using Supabase
-  Future<void> _handleSocialAuth(OAuthProvider provider) async {
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  // 1. Social Auth (Disabled/Placeholder for now as requested)
+  Future<void> _handleSocialAuth(String provider) async {
+    _showError("Social Sign Up is temporarily disabled to focus on Localhost.");
+  }
+
+  // 2. Manual Email/Password Sign Up (Direct to Django)
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
     setState(() => _isLoading = true);
     try {
-      await Supabase.instance.client.auth.signInWithOAuth(
-        provider,
-        // Ensure this deep link is registered in your Google/Meta consoles
-        redirectTo: 'io.supabase.flutter://login-callback',
-        // We pass the role to the backend via queryParams
-        queryParams: {'role': widget.role.toLowerCase()},
+      // We now wait for the boolean success from your updated AuthService
+      final bool success = await _authService.signUpWithEmail(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+        fullName: _nameController.text.trim(),
+        role: widget.role.toUpperCase(),
       );
-      // Note: No need for Navigator.push here. Supabase will handle the
-      // redirect back to the app, which you should catch in your main.dart or a listener.
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: ${e.toString()}")),
-      );
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
 
-  void _signUpWithGoogle() => _handleSocialAuth(OAuthProvider.google);
-
-  void _signUpWithFacebook() => _handleSocialAuth(OAuthProvider.facebook);
-
-  // 2. Manual Email/Password Sign Up Logic
-  Future<void> _submit() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-      try {
-        final response = await Supabase.instance.client.auth.signUp(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
-          data: {
-            'full_name': _nameController.text.trim(),
-            'role': widget.role.toLowerCase(), // This saves role in auth.users.raw_user_meta_data
-          },
-        );
-
-        if (response.user != null) {
-          // Success! Navigate to the main app
+      if (mounted) {
+        if (success) {
+          // Success: Navigate to the main app/home
           Navigator.pushReplacementNamed(context, AppRoutes.app);
+        } else {
+          // Failure: Likely a connection or validation error from Django
+          _showError("Sign up failed. Check your connection or if the user already exists.");
         }
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Sign up failed: ${e.toString()}")),
-        );
-      } finally {
-        setState(() => _isLoading = false);
       }
+    } catch (e) {
+      if (mounted) _showError("An unexpected error occurred: ${e.toString()}");
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  // ... (Rest of your UI code remains the same, but using updated _submit) ...
 
   OutlineInputBorder _roundedBorder([Color color = Colors.grey]) {
     return OutlineInputBorder(
@@ -88,93 +92,38 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     return Scaffold(
       body: SafeArea(
-        child: Stack( // Added Stack for loading overlay
+        child: Stack(
           children: [
             SingleChildScrollView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     const SizedBox(height: 24),
-                    Image.asset(
-                      'assets/images/logo1.png',
-                      height: 100,
-                      width: 250,
-                      fit: BoxFit.contain,
-                    ),
+                    Image.asset('assets/images/logo1.png', height: 100, width: 250),
                     const SizedBox(height: 24),
-                    Text(
-                      "Create account",
-                      style: textTheme.headlineMedium,
-                      textAlign: TextAlign.center,
-                    ),
+                    Text("Create account", style: textTheme.headlineMedium),
                     const SizedBox(height: 8),
-                    Text(
-                      "Sign up as ${widget.role[0].toUpperCase()}${widget.role.substring(1)}",
-                      style: textTheme.bodyMedium,
-                      textAlign: TextAlign.center,
-                    ),
+                    Text("Sign up as ${widget.role}", style: textTheme.bodyMedium),
                     const SizedBox(height: 24),
                     Form(
                       key: _formKey,
                       child: Column(
                         children: [
-                          TextFormField(
-                            controller: _nameController,
-                            decoration: InputDecoration(
-                              labelText: "Full name",
-                              prefixIcon: const Icon(Icons.person_outline),
-                              border: _roundedBorder(),
-                              enabledBorder: _roundedBorder(),
-                              focusedBorder: _roundedBorder(Colors.blue),
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 18),
-                            ),
-                            validator: _required,
-                          ),
+                          _buildTextField(_nameController, "Full name", Icons.person_outline),
                           const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            decoration: InputDecoration(
-                              labelText: "Email address",
-                              prefixIcon: const Icon(Icons.email_outlined),
-                              border: _roundedBorder(),
-                              enabledBorder: _roundedBorder(),
-                              focusedBorder: _roundedBorder(Colors.blue),
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 18),
-                            ),
-                            validator: _required,
-                          ),
+                          _buildTextField(_emailController, "Email address", Icons.email_outlined, keyboardType: TextInputType.emailAddress),
                           const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _passwordController,
-                            obscureText: _obscurePassword,
-                            decoration: InputDecoration(
-                              labelText: "Password",
-                              prefixIcon: const Icon(Icons.lock_outline),
-                              suffixIcon: IconButton(
-                                icon: Icon(_obscurePassword
-                                    ? Icons.visibility_off
-                                    : Icons.visibility),
-                                onPressed: () => setState(
-                                        () => _obscurePassword = !_obscurePassword),
-                              ),
-                              border: _roundedBorder(),
-                              enabledBorder: _roundedBorder(),
-                              focusedBorder: _roundedBorder(Colors.blue),
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 18),
-                            ),
-                            validator: _required,
-                          ),
+                          _buildTextField(_passwordController, "Password", Icons.lock_outline, isPassword: true),
                           const SizedBox(height: 32),
                           SizedBox(
                             width: double.infinity,
+                            height: 55,
                             child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                              ),
                               onPressed: _isLoading ? null : _submit,
                               child: _isLoading
                                   ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
@@ -184,10 +133,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
                     SocialAuthButtons(
-                      onGoogle: _signUpWithGoogle,
-                      onFacebook: _signUpWithFacebook,
+                      onGoogle: () => _handleSocialAuth("google"),
+                      onFacebook: () => _handleSocialAuth("facebook"),
                     ),
                     const SizedBox(height: 16),
                     Row(
@@ -195,31 +144,46 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       children: [
                         const Text("Already have an account?"),
                         TextButton(
-                          onPressed: () {
-                            Navigator.pushReplacementNamed(context, '/login');
-                          },
+                          onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
                           child: const Text("Sign in"),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 24),
                   ],
                 ),
               ),
             ),
             if (_isLoading)
-              Container(
-                color: Colors.black26,
-                child: const Center(child: CircularProgressIndicator()),
+              const Opacity(
+                opacity: 0.4,
+                child: ModalBarrier(dismissible: false, color: Colors.black),
               ),
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator()),
           ],
         ),
       ),
     );
   }
 
-  String? _required(String? value) {
-    if (value == null || value.isEmpty) return "Required field";
-    return null;
+  Widget _buildTextField(TextEditingController controller, String label, IconData icon, {bool isPassword = false, TextInputType? keyboardType}) {
+    return TextFormField(
+      controller: controller,
+      obscureText: isPassword && _obscurePassword,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        suffixIcon: isPassword ? IconButton(
+          icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+        ) : null,
+        border: _roundedBorder(),
+        enabledBorder: _roundedBorder(),
+        focusedBorder: _roundedBorder(Colors.blue),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      ),
+      validator: (v) => v == null || v.isEmpty ? "Required field" : null,
+    );
   }
 }
