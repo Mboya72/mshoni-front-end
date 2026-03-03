@@ -29,11 +29,21 @@ class AppRoutes {
         break;
 
       case app:
-        final roleString = settings.arguments as String? ?? 'customer';
+      // 1. Get the argument and make it lowercase to be safe
+        final rawRole = settings.arguments as String? ?? 'customer';
+        final roleString = rawRole.toLowerCase();
 
-        // Convert String → UserRole enum
-        final UserRole role =
-        roleString == 'tailor' ? UserRole.tailor : UserRole.customer;
+        // 2. Convert String → UserRole enum
+        // Use .contains or equals to catch 'tailor' regardless of 'TAILOR' or 'Tailor'
+        UserRole role;
+        if (roleString == 'tailor') {
+          role = UserRole.tailor;
+        } else if (roleString == 'seller') {
+          // Add seller if your DynamicNavBar supports it
+          role = UserRole.customer;
+        } else {
+          role = UserRole.customer;
+        }
 
         return MaterialPageRoute(
           builder: (_) => DynamicNavBar(role: role),
