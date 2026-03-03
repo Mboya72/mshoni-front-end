@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'core/routes/app_routes.dart';
-import 'core/theme/app_colors.dart'; // <-- import the colors class
+import 'core/theme/app_colors.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -10,16 +10,17 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      title: 'Mshoni',
       initialRoute: AppRoutes.onboarding,
       onGenerateRoute: AppRoutes.generateRoute,
 
       theme: ThemeData(
         useMaterial3: true,
-
+        // Using Seed ensures all secondary colors match your primary brand
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.primaryColor,
           brightness: Brightness.light,
-          background: AppColors.backgroundColor,
+          surface: AppColors.backgroundColor, // background is deprecated in newer versions
         ),
 
         scaffoldBackgroundColor: AppColors.backgroundColor,
@@ -27,39 +28,37 @@ class App extends StatelessWidget {
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          foregroundColor: AppColors.primaryColor, // use AppColors
+          centerTitle: true,
+          foregroundColor: AppColors.primaryColor,
         ),
 
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primaryColor,
             foregroundColor: Colors.white,
+            minimumSize: const Size(double.infinity, 50), // Standardized button height
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(30),
             ),
-            padding: const EdgeInsets.symmetric(
-              horizontal: 24,
-              vertical: 14,
+            textStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
 
         textTheme: GoogleFonts.urbanistTextTheme(
-          TextTheme(
-            displayLarge: TextStyle(
+          Theme.of(context).textTheme.copyWith(
+            displayLarge: const TextStyle(
               fontSize: 36,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.bold,
               color: AppColors.primaryColor,
-            ),
-            titleLarge: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w600,
             ),
             bodyLarge: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
             ),
-            bodyMedium: TextStyle(
+            bodyMedium: const TextStyle(
               fontSize: 14,
               color: AppColors.subtitleColor,
             ),
