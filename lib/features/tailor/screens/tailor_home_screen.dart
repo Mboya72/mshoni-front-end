@@ -1,5 +1,36 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import '../../../core/services/auth_service.dart';
+import '../../../core/network/api_config.dart';
+
+/// Data model for workshop statistics
+class TailorStats {
+  final double totalRevenue;
+  final int pendingCuts;
+  final int toBeSewn;
+  final int fittings;
+  final int ready;
+
+  TailorStats({
+    this.totalRevenue = 0.0,
+    this.pendingCuts = 0,
+    this.toBeSewn = 0,
+    this.fittings = 0,
+    this.ready = 0,
+  });
+
+  factory TailorStats.fromJson(Map<String, dynamic> json) {
+    return TailorStats(
+      totalRevenue: (json['total_revenue'] ?? 0).toDouble(),
+      pendingCuts: json['pending_cuts'] ?? 0,
+      toBeSewn: json['to_be_sewn'] ?? 0,
+      fittings: json['fittings'] ?? 0,
+      ready: json['ready_for_pickup'] ?? 0,
+    );
+  }
+}
 
 class TailorHomeScreen extends StatefulWidget {
   const TailorHomeScreen({super.key});
@@ -10,11 +41,14 @@ class TailorHomeScreen extends StatefulWidget {
 
 class _TailorHomeScreenState extends State<TailorHomeScreen> {
   final AuthService _authService = AuthService();
+
+  // State variables
   String _userName = "Master Tailor";
   String? _token;
   bool _isLoading = true;
+  TailorStats _stats = TailorStats();
 
-  // Colors
+  // Theme Colors
   static const Color scaffoldBg = Color(0xFFF0F7FF);
   static const Color textMain = Color(0xFF1A1D21);
   static const Color skyBluePrimary = Color(0xFF0EA5E9);
@@ -23,42 +57,60 @@ class _TailorHomeScreenState extends State<TailorHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadUserData();
+    _initDashboard();
   }
 
-  Future<void> _loadUserData() async {
+  /// Combined initialization: Load User -> Load Stats
+  Future<void> _initDashboard() async {
     try {
-      final userData = await _authService.getUser();
-      final token = await _authService.getToken();
+      final userData = await _authService.getUserProfile();
+      final token = await _authService.getAccessToken();
 
-      // DEBUG: Verify keys in your debug console
-      debugPrint("DEBUG: User Data Map content: $userData");
+      if (token == null) {
+        if (mounted) Navigator.pushReplacementNamed(context, '/login');
+        return;
+      }
 
       if (mounted) {
-        if (token == null) {
-          Navigator.pushReplacementNamed(context, '/login');
-          return;
-        }
-
         setState(() {
-          // Check most descriptive fields first. Falls back to username or "Master Tailor"
-          _userName = userData?['full_name'] ??
-              userData?['user']?['full_name'] ??
-              userData?['first_name'] ??
-              userData?['username'] ??
-              "Master Tailor";
-
+          _userName = userData?['first_name'] ?? userData?['username'] ?? "Master Tailor";
           _token = token;
-          _isLoading = false;
         });
+        await _fetchStats();
       }
     } catch (e) {
-      debugPrint("❌ Error loading user data: $e");
+      debugPrint("❌ Init Error: $e");
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // Helper method for professional text formatting
+  /// Fetch dynamic statistics from the Django backend
+  Future<void> _fetchStats() async {
+    try {
+      final response = await http.get(
+        Uri.parse("${ApiConfig.baseUrl}/marketplace/stats/"),
+        headers: {
+          'Authorization': 'Bearer $_token',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        if (mounted) {
+          setState(() {
+            _stats = TailorStats.fromJson(jsonDecode(response.body));
+            _isLoading = false;
+          });
+        }
+      } else {
+        throw Exception("Failed to load stats");
+      }
+    } catch (e) {
+      debugPrint("❌ Stats Fetch Error: $e");
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   String _capitalize(String s) => s.isNotEmpty ? "${s[0].toUpperCase()}${s.substring(1)}" : s;
 
   @override
@@ -72,138 +124,85 @@ class _TailorHomeScreenState extends State<TailorHomeScreen> {
 
     return Scaffold(
       backgroundColor: scaffoldBg,
-      extendBody: true,
       extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: false,
-        title: Row(
-          children: [
-            const CircleAvatar(
-              radius: 22,
-              backgroundColor: Colors.white,
-              backgroundImage: NetworkImage('https://i.pravatar.cc/150?u=tailormaster'),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                      "Welcome back,",
-                      style: TextStyle(
-                        color: Colors.black45,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5, // Added for a cleaner UI feel
-                      )
-                  ),
-                  Text(
-                    "${_capitalize(_userName)} 👋", // Added emoji here for a friendly vibe
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                    style: const TextStyle(
-                      color: Color(0xFF1A1D21), // Replaced textMain with your specific hex
-                      fontSize: 18, // Slightly larger for better hierarchy
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            onPressed: () {},
-            icon: _buildTopIcon(Icons.inventory_2_outlined, skyBluePrimary),
+      appBar: _buildAppBar(),
+      body: RefreshIndicator(
+        onRefresh: _fetchStats,
+        color: skyBluePrimary,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 120, 20, 100),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Business Revenue", style: TextStyle(color: textMain, fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 15),
+              _TailorHeroCard(revenue: _stats.totalRevenue),
+              const SizedBox(height: 30),
+              const Text("Workshop Queue", style: TextStyle(color: textMain, fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 15),
+              _buildStatGrid(),
+              const SizedBox(height: 30),
+              const Text("Recent Projects", style: TextStyle(color: textMain, fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 15),
+              // Placeholders for recent project items
+              _buildOrderTile("Client: James Omari", "Full Tuxedo • Cutting", 0.40, skyBluePrimary),
+              _buildOrderTile("Client: Sarah W.", "Evening Gown • Finished", 1.0, const Color(0xFF10B981)),
+            ],
           ),
-          const SizedBox(width: 10),
-        ],
-      ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 120, 20, 100),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Business Revenue",
-                style: TextStyle(color: textMain, fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 15),
-            _TailorHeroCard(primaryColor: skyBluePrimary, secondaryColor: skyBlueDark),
-            const SizedBox(height: 30),
-            const Text("Workshop Queue",
-                style: TextStyle(color: textMain, fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 15),
-            GridView.count(
-              padding: EdgeInsets.zero,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              crossAxisSpacing: 15,
-              mainAxisSpacing: 15,
-              childAspectRatio: 1.1,
-              children: const [
-                _StatGridCard(
-                  label: "Pending Cuts",
-                  value: "08",
-                  icon: Icons.content_cut,
-                  color: Color(0xFF0284C7),
-                  trend: "Due Today",
-                ),
-                _StatGridCard(
-                  label: "To be Sewn",
-                  value: "14",
-                  icon: Icons.checkroom,
-                  color: Color(0xFF10B981),
-                  trend: "Priority",
-                ),
-                _StatGridCard(
-                  label: "Fittings",
-                  value: "05",
-                  icon: Icons.accessibility_new,
-                  color: Color(0xFF8B5CF6),
-                  trend: "Scheduled",
-                ),
-                _StatGridCard(
-                  label: "Ready for Pickup",
-                  value: "11",
-                  icon: Icons.local_shipping_outlined,
-                  color: Color(0xFFF59E0B),
-                  trend: "Notify",
-                ),
-              ],
-            ),
-            const SizedBox(height: 30),
-            const Text("Upcoming Deadlines",
-                style: TextStyle(color: textMain, fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 15),
-            _buildOrderTile("Client: James Omari", "Full Tuxedo • Due Tomorrow", 0.40, skyBluePrimary),
-            _buildOrderTile("Client: Sarah W.", "Evening Gown • Due 3rd Mar", 0.85, const Color(0xFF10B981)),
-          ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: skyBluePrimary,
-        elevation: 4,
-        onPressed: () {},
+        onPressed: () => Navigator.pushNamed(context, '/add-project'),
         child: const Icon(Icons.add, color: Colors.white, size: 30),
       ),
     );
   }
 
-  Widget _buildTopIcon(IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
-        boxShadow: [BoxShadow(color: color.withOpacity(0.1), blurRadius: 8)],
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      automaticallyImplyLeading: false,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      title: Row(
+        children: [
+          const CircleAvatar(
+            radius: 22,
+            backgroundImage: NetworkImage('https://i.pravatar.cc/150?u=tailormaster'),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Welcome back,", style: TextStyle(color: Colors.black45, fontSize: 12, fontWeight: FontWeight.bold)),
+              Text("${_capitalize(_userName)} 👋", style: const TextStyle(color: textMain, fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ],
       ),
-      child: Icon(icon, color: Colors.black87, size: 20),
+      actions: [
+        IconButton(icon: const Icon(Icons.inventory_2_outlined, color: skyBluePrimary), onPressed: () {}),
+        const SizedBox(width: 10),
+      ],
+    );
+  }
+
+  Widget _buildStatGrid() {
+    return GridView.count(
+      padding: EdgeInsets.zero,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      crossAxisSpacing: 15,
+      mainAxisSpacing: 15,
+      childAspectRatio: 1.1,
+      children: [
+        _StatGridCard(label: "Pending Cuts", value: _stats.pendingCuts.toString().padLeft(2, '0'), icon: Icons.content_cut, color: const Color(0xFF0284C7)),
+        _StatGridCard(label: "To be Sewn", value: _stats.toBeSewn.toString().padLeft(2, '0'), icon: Icons.checkroom, color: const Color(0xFF10B981)),
+        _StatGridCard(label: "Fittings", value: _stats.fittings.toString().padLeft(2, '0'), icon: Icons.accessibility_new, color: const Color(0xFF8B5CF6)),
+        _StatGridCard(label: "Ready", value: _stats.ready.toString().padLeft(2, '0'), icon: Icons.local_shipping_outlined, color: const Color(0xFFF59E0B)),
+      ],
     );
   }
 
@@ -211,52 +210,25 @@ class _TailorHomeScreenState extends State<TailorHomeScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10)],
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
       child: Row(
         children: [
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              SizedBox(
-                height: 40,
-                width: 40,
-                child: CircularProgressIndicator(
-                  value: progress,
-                  strokeWidth: 3,
-                  color: color,
-                  backgroundColor: color.withOpacity(0.1),
-                ),
-              ),
-              Icon(Icons.timer_outlined, size: 12, color: color),
-            ],
-          ),
+          SizedBox(height: 40, width: 40, child: CircularProgressIndicator(value: progress, color: color, backgroundColor: color.withOpacity(0.1), strokeWidth: 3)),
           const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: textMain)),
-                Text(status, style: const TextStyle(color: Colors.black45, fontSize: 11, fontWeight: FontWeight.bold)),
-              ],
-            ),
-          ),
-          const Icon(Icons.chevron_right, color: Colors.black12, size: 20),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            Text(status, style: const TextStyle(color: Colors.black45, fontSize: 11)),
+          ])),
+          const Icon(Icons.chevron_right, color: Colors.black12),
         ],
       ),
     );
   }
 }
 
-// --- SUPPORTING WIDGETS ---
-
 class _TailorHeroCard extends StatelessWidget {
-  final Color primaryColor;
-  final Color secondaryColor;
-  const _TailorHeroCard({required this.primaryColor, required this.secondaryColor});
+  final double revenue;
+  const _TailorHeroCard({required this.revenue});
 
   @override
   Widget build(BuildContext context) {
@@ -264,73 +236,41 @@ class _TailorHeroCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [primaryColor, secondaryColor], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        gradient: const LinearGradient(colors: [Color(0xFF0EA5E9), Color(0xFF0369A1)]),
         borderRadius: BorderRadius.circular(28),
-        boxShadow: [BoxShadow(color: primaryColor.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Total Workshop Revenue", style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
+          const Text("Total Workshop Revenue", style: TextStyle(color: Colors.white70, fontSize: 12)),
           const SizedBox(height: 8),
-          const Text("KSh 385,600", style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
+          Text("KSh ${revenue.toStringAsFixed(0)}", style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
           const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: Colors.white.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _statItem("Expected Today", "KSh 42k"),
-                _statItem("Active Orders", "24"),
-                const Icon(Icons.trending_up, color: Colors.white, size: 20),
-              ],
-            ),
-          ),
+          const Text("Updated live from M-Pesa", style: TextStyle(color: Colors.white54, fontSize: 10)),
         ],
       ),
-    );
-  }
-
-  Widget _statItem(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
-        Text(value, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-      ],
     );
   }
 }
 
 class _StatGridCard extends StatelessWidget {
-  final String label, value, trend;
+  final String label, value;
   final IconData icon;
   final Color color;
-  const _StatGridCard({required this.label, required this.value, required this.icon, required this.color, required this.trend});
+  const _StatGridCard({required this.label, required this.value, required this.icon, required this.color});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: color.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Icon(icon, color: color, size: 24),
-              Text(trend, style: TextStyle(color: color, fontSize: 8, fontWeight: FontWeight.bold)),
-            ],
-          ),
+          Icon(icon, color: color, size: 24),
           const Spacer(),
-          Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          Text(label, style: const TextStyle(color: Colors.black54, fontSize: 11, fontWeight: FontWeight.bold)),
+          Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          Text(label, style: const TextStyle(color: Colors.black54, fontSize: 11)),
         ],
       ),
     );

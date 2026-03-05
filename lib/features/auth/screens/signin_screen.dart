@@ -45,38 +45,32 @@ class _SignInScreenState extends State<SignInScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final response = await http.post(
-        Uri.parse(ApiConfig.login),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'username': _emailController.text.trim(),
-          'password': _passwordController.text.trim(),
-        }),
-      ).timeout(const Duration(seconds: 10));
+      // 1. Use the AuthService we just updated to handle the network call
+      final success = await _authService.login(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+      );
 
-      if (response.statusCode == 200) {
-        await AuthService().handleLoginResponse(response.body);
+      if (success) {
+        // 2. Fetch the saved user data to determine where to send them
+        final userData = await _authService.getUserProfile();
 
-        final Map<String, dynamic> data = jsonDecode(response.body);
-
-        // 2. Safely extract role
-        // Nested check: data['user']['role']
-        final String role = (data['user']?['role'] ?? 'customer').toString().toLowerCase();
+        // Use the 'role' field we added to your Django Serializer
+        final String role = (userData?['role'] ?? 'customer').toString().toLowerCase();
 
         if (mounted) {
-          // 3. Navigate to Dashboard
+          // 3. Navigate to Dashboard based on role
           Navigator.pushReplacementNamed(
             context,
             AppRoutes.app,
-            arguments: data['user']['role'], // Make sure this isn't null!
+            arguments: role,
           );
         }
       } else {
-        final error = jsonDecode(response.body);
-        _showError(error['detail'] ?? "Invalid credentials");
+        _showError("Invalid email or password. Please try again.");
       }
     } catch (e) {
-      _showError("Connection error: Ensure Django is running.");
+      _showError("Connection error: Ensure your backend is live.");
       print("Login Error: $e");
     } finally {
       if (mounted) setState(() => _isLoading = false);

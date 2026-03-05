@@ -43,28 +43,37 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     setState(() => _isLoading = true);
     try {
-      // We now wait for the boolean success from your updated AuthService
-      final bool success = await _authService.signUpWithEmail(
+      // Split the full name into first and last names for Django
+      final String fullInput = _nameController.text.trim();
+      final List<String> nameParts = fullInput.split(' ');
+      final String firstName = nameParts.isNotEmpty ? nameParts[0] : '';
+      final String lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
+
+      // We call the updated signUp method in AuthService
+      final bool success = await _authService.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
-        fullName: _nameController.text.trim(),
-        role: widget.role.toUpperCase(),
+        firstName: firstName,
+        lastName: lastName,
+        role: widget.role.toLowerCase(), // Ensure it's lowercase 'tailor' or 'customer'
       );
 
       if (mounted) {
         if (success) {
-          // ✅ Success: Pass the role to the route so it knows which dashboard to show
+          // ✅ Success: The AuthService has already saved the tokens.
+          // Navigate to the main app dashboard.
           Navigator.pushReplacementNamed(
             context,
             AppRoutes.app,
-            arguments: widget.role.toLowerCase(), // This sends 'tailor' or 'customer'
+            arguments: widget.role.toLowerCase(),
           );
         } else {
-          _showError("Sign up failed. Check your connection or if the user already exists.");
+          _showError("Sign up failed. That email might already be registered.");
         }
       }
     } catch (e) {
-      if (mounted) _showError("An unexpected error occurred: ${e.toString()}");
+      if (mounted) _showError("Connection error: Is the Mshoni backend live?");
+      print("SignUp Error: $e");
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
