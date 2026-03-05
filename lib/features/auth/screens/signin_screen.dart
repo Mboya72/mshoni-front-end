@@ -55,9 +55,7 @@ class _SignInScreenState extends State<SignInScreen> {
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
-        // 1. Save session using the helper in AuthService
-        // This handles the 'access' token and the 'user' object
-        await _authService.handleLoginResponse(response.body);
+        await AuthService().handleLoginResponse(response.body);
 
         final Map<String, dynamic> data = jsonDecode(response.body);
 
