@@ -2,20 +2,7 @@ import 'dart:io';
 
 class ApiConfig {
   // Set to false to use the live Render backend
-  static const bool useLocalHost = false;
-
-  static String get baseUrl {
-    if (useLocalHost) {
-      // Logic for Android Emulator (10.0.2.2) vs iOS/Web (127.0.0.1)
-      return Platform.isAndroid
-          ? "http://10.0.2.2:8000/api"
-          : "http://127.0.0.1:8000/api";
-    } else {
-      // Your Live Render Production URL
-      return "https://mshoni-back-end.onrender.com/api";
-    }
-  }
-
+  static const String baseUrl = "https://mshoni-back-end.onrender.com/api";
   // ==========================================
   // 1. AUTHENTICATION & USER
   // ==========================================

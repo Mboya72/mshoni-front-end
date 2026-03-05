@@ -1,12 +1,18 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_sign_in/google_sign_in.dart'; // Added this
 import '../network/api_config.dart';
 
 class AuthService {
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
   AuthService._internal();
+
+  // Initialize Google Sign In
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+  );
 
   static const String _tokenKey = 'access_token';
   static const String _refreshKey = 'refresh_token';
@@ -24,13 +30,48 @@ class AuthService {
     return userStr != null ? jsonDecode(userStr) : null;
   }
 
+  // --- GOOGLE SIGN IN ---
+  Future<bool> signInWithGoogle(String role) async {
+    try {
+      // 1. Trigger the native Google overlay
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return false; // User cancelled the selection
+
+      // 2. Get the auth details (token)
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final String? idToken = googleAuth.idToken;
+
+      if (idToken == null) return false;
+
+      // 3. Exchange Google Token for Django JWT
+      // Ensure ApiConfig.googleLogin points to something like /api/auth/google/
+      final response = await http.post(
+        Uri.parse("${ApiConfig.baseUrl}/auth/google/"),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'token': idToken,
+          'role': role.toLowerCase(),
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        await _saveSession(jsonDecode(response.body));
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print("Google Auth Error: $e");
+      return false;
+    }
+  }
+
   // --- SIGN UP ---
   Future<bool> signUp({
     required String email,
     required String password,
     required String firstName,
     required String lastName,
-    required String role, // 'tailor', 'customer', etc.
+    required String role,
   }) async {
     try {
       final response = await http.post(
@@ -42,7 +83,6 @@ class AuthService {
           'first_name': firstName,
           'last_name': lastName,
           'role': role.toLowerCase(),
-          // Django still needs a unique username; email prefix is a safe bet
           'username': email.split('@')[0],
         }),
       );
@@ -79,7 +119,6 @@ class AuthService {
   }
 
   // --- TOKEN REFRESH ---
-  // Call this if a 401 Unauthorized occurs
   Future<String?> refreshToken() async {
     final prefs = await SharedPreferences.getInstance();
     final refresh = prefs.getString(_refreshKey);
@@ -107,17 +146,16 @@ class AuthService {
   Future<void> _saveSession(Map<String, dynamic> data) async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Save JWT Tokens
     if (data.containsKey('access')) await prefs.setString(_tokenKey, data['access']);
     if (data.containsKey('refresh')) await prefs.setString(_refreshKey, data['refresh']);
 
-    // Save User Profile (We added user_id and role to the login response earlier)
     await prefs.setString(_userKey, jsonEncode(data));
     print("✅ Mshoni session active: ${data['role']}");
   }
 
   Future<void> signOut() async {
     final prefs = await SharedPreferences.getInstance();
+    await _googleSignIn.signOut(); // Ensure Google is also logged out
     await prefs.clear();
   }
 }
