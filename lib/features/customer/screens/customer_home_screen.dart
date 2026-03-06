@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 import '../../../core/services/auth_service.dart';
 import '../../../core/network/api_config.dart';
 
-/// Data model for Customer spending and project counts
 class CustomerStats {
   final double totalInvestment;
   final double monthlySpent;
@@ -25,12 +24,13 @@ class CustomerStats {
 
   factory CustomerStats.fromJson(Map<String, dynamic> json) {
     return CustomerStats(
-      totalInvestment: (json['total_investment'] ?? 0).toDouble(),
-      monthlySpent: (json['monthly_spent'] ?? 0).toDouble(),
-      lastMonthSpent: (json['last_month_spent'] ?? 0).toDouble(),
+      // Improved null safety and type casting
+      totalInvestment: double.tryParse(json['total_investment']?.toString() ?? '0') ?? 0.0,
+      monthlySpent: double.tryParse(json['monthly_spent']?.toString() ?? '0') ?? 0.0,
+      lastMonthSpent: double.tryParse(json['last_month_spent']?.toString() ?? '0') ?? 0.0,
       activeProjects: json['active_projects_count'] ?? 0,
       completedProjects: json['completed_projects_count'] ?? 0,
-      avgPerOrder: json['avg_order_value'] ?? "KSh 0",
+      avgPerOrder: json['avg_order_value']?.toString() ?? "KSh 0",
     );
   }
 }
@@ -44,7 +44,6 @@ class CustomerHomeScreen extends StatefulWidget {
 
 class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   final AuthService _authService = AuthService();
-
   String _userName = "Customer";
   bool _isLoading = true;
   CustomerStats _stats = CustomerStats();
@@ -67,26 +66,25 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
       if (mounted) {
         setState(() {
+          // Robustly check for name in the profile
           _userName = userData?['first_name'] ?? userData?['username'] ?? "Customer";
         });
         await _fetchCustomerData(token);
       }
     } catch (e) {
-      debugPrint("❌ Customer Init Error: $e");
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _fetchCustomerData(String token) async {
     try {
-      // Fetching stats from our Django 'customers/stats/' endpoint
       final response = await http.get(
         Uri.parse("${ApiConfig.baseUrl}/projects/customer-stats/"),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         if (mounted) {
@@ -96,15 +94,13 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           });
         }
       } else {
-        throw Exception("Failed to load customer stats");
+        throw Exception("Status ${response.statusCode}");
       }
     } catch (e) {
       debugPrint("❌ Stats Fetch Error: $e");
       if (mounted) setState(() => _isLoading = false);
     }
   }
-
-  String _capitalize(String s) => s.isNotEmpty ? "${s[0].toUpperCase()}${s.substring(1)}" : s;
 
   @override
   Widget build(BuildContext context) {
@@ -121,18 +117,19 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       child: Scaffold(
         backgroundColor: const Color(0xFFF0F7FF),
         body: RefreshIndicator(
+          color: skyBluePrimary,
           onRefresh: () async {
             final token = await _authService.getAccessToken();
             if (token != null) await _fetchCustomerData(token);
           },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(20, 80, 20, 100),
+            padding: const EdgeInsets.fromLTRB(20, 60, 20, 100),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHeader(),
-                const SizedBox(height: 30),
+                const SizedBox(height: 25),
                 const Text("Spending Insights", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 15),
                 _FinancialHeroCard(stats: _stats),
@@ -143,7 +140,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 const SizedBox(height: 30),
                 const Text("Recent Activity", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 15),
-                // These would eventually be mapped from a 'RecentProjects' list
                 _buildOrderTile("Wedding Suit", "Tailoring Phase", 0.75, skyBluePrimary),
                 _buildOrderTile("Office Blazer", "Quality Check", 0.90, const Color(0xFF10B981)),
               ],
@@ -159,31 +155,33 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       children: [
         const CircleAvatar(
           radius: 24,
-          backgroundImage: NetworkImage('https://i.pravatar.cc/150?u=customer'),
+          backgroundColor: Color(0xFF0EA5E9),
+          child: Icon(Icons.person, color: Colors.white),
         ),
         const SizedBox(width: 12),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text("Welcome back,", style: TextStyle(color: Colors.black45, fontSize: 13, fontWeight: FontWeight.bold)),
-            Text("${_capitalize(_userName)} 👋", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text("${_userName[0].toUpperCase()}${_userName.substring(1)} 👋", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           ],
         ),
         const Spacer(),
-        _buildTopIcon(Icons.notifications_none, const Color(0xFF0EA5E9)),
+        _buildTopIcon(Icons.notifications_none),
       ],
     );
   }
 
   Widget _buildStatGrid() {
+    // Wrap GridView in a fixed height or use shrinkWrap carefully
     return GridView.count(
       padding: EdgeInsets.zero,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       crossAxisCount: 2,
-      crossAxisSpacing: 18,
-      mainAxisSpacing: 18,
-      childAspectRatio: 1.05,
+      crossAxisSpacing: 15,
+      mainAxisSpacing: 15,
+      childAspectRatio: 1.1, // Adjusted for better text fitting
       children: [
         _StatGridCard(label: "Active Projects", value: _stats.activeProjects.toString().padLeft(2, '0'), icon: Icons.architecture, color: const Color(0xFF0284C7)),
         _StatGridCard(label: "Completed", value: _stats.completedProjects.toString().padLeft(2, '0'), icon: Icons.verified_outlined, color: const Color(0xFF10B981)),
@@ -193,7 +191,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     );
   }
 
-  Widget _buildTopIcon(IconData icon, Color color) {
+  Widget _buildTopIcon(IconData icon) {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
@@ -205,7 +203,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
       child: Row(
         children: [
           Stack(
@@ -237,23 +235,31 @@ class _FinancialHeroCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFF0EA5E9), Color(0xFF0369A1)]),
-        borderRadius: BorderRadius.circular(32),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF0EA5E9), Color(0xFF0369A1)],
+        ),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(color: const Color(0xFF0EA5E9).withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Total App Investment", style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
+          const Text("Total Mshoni Investment", style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Text("KSh ${stats.totalInvestment.toStringAsFixed(0)}", style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+          Text("KSh ${stats.totalInvestment.toStringAsFixed(0)}", style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
           const SizedBox(height: 25),
           Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(22)),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.12), borderRadius: BorderRadius.circular(18)),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 _heroStat("Monthly Spent", "KSh ${stats.monthlySpent.toStringAsFixed(0)}"),
+                const VerticalDivider(color: Colors.white24),
                 _heroStat("Last Month", "KSh ${stats.lastMonthSpent.toStringAsFixed(0)}"),
               ],
             ),
@@ -265,7 +271,8 @@ class _FinancialHeroCard extends StatelessWidget {
 
   Widget _heroStat(String label, String value) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: const TextStyle(color: Colors.white, fontSize: 11)),
+      Text(label, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+      const SizedBox(height: 4),
       Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
     ]);
   }
@@ -280,15 +287,19 @@ class _StatGridCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(30)),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 22),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+            child: Icon(icon, color: color, size: 20),
+          ),
           const Spacer(),
-          Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
-          Text(label, style: const TextStyle(color: Colors.black54, fontSize: 11, fontWeight: FontWeight.bold)),
+          Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+          Text(label, style: const TextStyle(color: Colors.black45, fontSize: 11, fontWeight: FontWeight.bold)),
         ],
       ),
     );

@@ -11,64 +11,66 @@ class AppRoutes {
   static const app = '/app';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
-    Widget page;
+    // 1. Helper to build the target page
+    Widget getPage() {
+      switch (settings.name) {
+        case onboarding:
+          return const OnboardingScreen();
 
-    switch (settings.name) {
-      case onboarding:
-        page = const OnboardingScreen();
-        break;
+        case signup:
+        // Casting safely and ensuring a default for the Tailor/Customer logic
+          final role = settings.arguments as String? ?? 'customer';
+          return SignUpScreen(role: role);
 
-      case signup:
-        final role = settings.arguments as String? ?? 'customer';
-        return MaterialPageRoute(
-          builder: (_) => SignUpScreen(role: role),
-        );
+        case login:
+          return const SignInScreen();
 
-      case login:
-        page = const SignInScreen();
-        break;
+        case app:
+          final rawRole = (settings.arguments as String? ?? 'customer').toLowerCase();
 
-      case app:
-      // 1. Get the argument and make it lowercase to be safe
-        final rawRole = settings.arguments as String? ?? 'customer';
-        final roleString = rawRole.toLowerCase();
+          // Map backend string to Flutter Enum
+          UserRole role;
+          if (rawRole == 'tailor') {
+            role = UserRole.tailor;
+          } else {
+            role = UserRole.customer;
+          }
+          return DynamicNavBar(role: role);
 
-        // 2. Convert String → UserRole enum
-        // Use .contains or equals to catch 'tailor' regardless of 'TAILOR' or 'Tailor'
-        UserRole role;
-        if (roleString == 'tailor') {
-          role = UserRole.tailor;
-        } else if (roleString == 'seller') {
-          // Add seller if your DynamicNavBar supports it
-          role = UserRole.customer;
-        } else {
-          role = UserRole.customer;
-        }
-
-        return MaterialPageRoute(
-          builder: (_) => DynamicNavBar(role: role),
-        );
-
-      default:
-        page = const Scaffold(
-          body: Center(child: Text('Route not found')),
-        );
-        break;
+        default:
+          return const Scaffold(
+            body: Center(child: Text('Route not found')),
+          );
+      }
     }
 
+    // 2. Return the custom animated route
     return PageRouteBuilder(
-      pageBuilder: (context, animation, secondaryAnimation) => page,
+      settings: settings, // Passes the name and arguments to the destination
+      pageBuilder: (context, animation, secondaryAnimation) => getPage(),
+      transitionDuration: const Duration(milliseconds: 400),
+      reverseTransitionDuration: const Duration(milliseconds: 300),
+      // Fix: Ensures the background doesn't vanish during the slide
+      opaque: true,
+      barrierDismissible: false,
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        final slideTween = Tween(
+        // Slide from Right to Left
+        final slideTween = Tween<Offset>(
           begin: const Offset(1.0, 0.0),
           end: Offset.zero,
         ).chain(CurveTween(curve: Curves.easeOutCubic));
 
-        final fadeTween =
-        Tween(begin: 0.0, end: 1.0).chain(CurveTween(curve: Curves.easeIn));
+        // Fade In
+        final fadeTween = Tween<double>(
+            begin: 0.0,
+            end: 1.0
+        ).chain(CurveTween(curve: Curves.easeIn));
 
-        final scaleTween =
-        Tween(begin: 0.95, end: 1.0).chain(CurveTween(curve: Curves.easeOut));
+        // Subtle Scale Up
+        final scaleTween = Tween<double>(
+            begin: 0.95,
+            end: 1.0
+        ).chain(CurveTween(curve: Curves.easeOut));
 
         return SlideTransition(
           position: animation.drive(slideTween),
@@ -81,7 +83,6 @@ class AppRoutes {
           ),
         );
       },
-      transitionDuration: const Duration(milliseconds: 400),
     );
   }
 }

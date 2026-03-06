@@ -1,52 +1,60 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart'; // <--- ADD THIS LINE
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:google_sign_in/google_sign_in.dart'; // Added this
+import 'package:google_sign_in/google_sign_in.dart';
 import '../network/api_config.dart';
 
 class AuthService {
+  // Singleton pattern
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
   AuthService._internal();
 
-  // Initialize Google Sign In
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: ['email', 'profile'],
-  );
+  // Google Sign In Instance (v7+ singleton style)
+  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
 
   static const String _tokenKey = 'access_token';
   static const String _refreshKey = 'refresh_token';
   static const String _userKey = 'user_data';
 
-  // --- GETTERS ---
-  Future<String?> getAccessToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_tokenKey);
-  }
-
+  // --- 1. USER PROFILE ---
   Future<Map<String, dynamic>?> getUserProfile() async {
     final prefs = await SharedPreferences.getInstance();
-    final userStr = prefs.getString(_userKey);
-    return userStr != null ? jsonDecode(userStr) : null;
+    final String? userStr = prefs.getString(_userKey);
+    if (userStr == null) return null;
+    try {
+      return jsonDecode(userStr) as Map<String, dynamic>;
+    } catch (e) {
+      return null;
+    }
   }
 
-  // --- GOOGLE SIGN IN ---
+  // --- 2. ACCESS TOKEN (FIXED: Moved inside the class) ---
+  Future<String?> getAccessToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(_tokenKey);
+
+    if (token != null) {
+      debugPrint("🔑 Token retrieved successfully");
+    } else {
+      debugPrint("⚠️ No token found in storage");
+    }
+    return token;
+  }
+
+  // --- 3. GOOGLE SIGN IN ---
   Future<bool> signInWithGoogle(String role) async {
     try {
-      // 1. Trigger the native Google overlay
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return false; // User cancelled the selection
-
-      // 2. Get the auth details (token)
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      await _googleSignIn.initialize();
+      final GoogleSignInAccount googleUser = await _googleSignIn.authenticate();
+      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
       final String? idToken = googleAuth.idToken;
 
       if (idToken == null) return false;
 
-      // 3. Exchange Google Token for Django JWT
-      // Ensure ApiConfig.googleLogin points to something like /api/auth/google/
       final response = await http.post(
-        Uri.parse("${ApiConfig.baseUrl}/auth/google/"),
+        Uri.parse("${ApiConfig.baseUrl}/api/users/google/"),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'token': idToken,
@@ -60,12 +68,12 @@ class AuthService {
       }
       return false;
     } catch (e) {
-      print("Google Auth Error: $e");
+      debugPrint("Google Auth Error: $e");
       return false;
     }
   }
 
-  // --- SIGN UP ---
+  // --- 4. SIGN UP ---
   Future<bool> signUp({
     required String email,
     required String password,
@@ -93,12 +101,12 @@ class AuthService {
       }
       return false;
     } catch (e) {
-      print("SignUp Error: $e");
+      debugPrint("SignUp Error: $e");
       return false;
     }
   }
 
-  // --- LOGIN ---
+  // --- 5. LOGIN ---
   Future<bool> login(String email, String password) async {
     try {
       final response = await http.post(
@@ -113,49 +121,24 @@ class AuthService {
       }
       return false;
     } catch (e) {
-      print("Login Error: $e");
+      debugPrint("Login Error: $e");
       return false;
     }
   }
 
-  // --- TOKEN REFRESH ---
-  Future<String?> refreshToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final refresh = prefs.getString(_refreshKey);
-    if (refresh == null) return null;
-
-    try {
-      final response = await http.post(
-        Uri.parse(ApiConfig.tokenRefresh),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'refresh': refresh}),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        await prefs.setString(_tokenKey, data['access']);
-        return data['access'];
-      }
-    } catch (e) {
-      print("Refresh Error: $e");
-    }
-    return null;
-  }
-
-  // --- SESSION SAVER ---
+  // --- SESSION MANAGEMENT ---
   Future<void> _saveSession(Map<String, dynamic> data) async {
     final prefs = await SharedPreferences.getInstance();
-
     if (data.containsKey('access')) await prefs.setString(_tokenKey, data['access']);
     if (data.containsKey('refresh')) await prefs.setString(_refreshKey, data['refresh']);
-
     await prefs.setString(_userKey, jsonEncode(data));
-    print("✅ Mshoni session active: ${data['role']}");
   }
 
   Future<void> signOut() async {
     final prefs = await SharedPreferences.getInstance();
-    await _googleSignIn.signOut(); // Ensure Google is also logged out
+    try {
+      await _googleSignIn.signOut();
+    } catch (_) {}
     await prefs.clear();
   }
-}
+} // <--- END OF CLASS

@@ -13,7 +13,7 @@ class SignUpScreen extends StatefulWidget {
 
 class _SignUpScreenState extends State<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _authService = AuthService();
+  final AuthService _authService = AuthService(); // Ensure this matches your Singleton
 
   bool _obscurePassword = true;
   bool _isLoading = false;
@@ -30,21 +30,27 @@ class _SignUpScreenState extends State<SignUpScreen> {
     super.dispose();
   }
 
-  /// ACTIVE: Google Sign-In Logic
+  /// --- GOOGLE SIGN-IN ---
   Future<void> _handleSocialAuth(String provider) async {
     if (provider == 'google') {
       setState(() => _isLoading = true);
       try {
+        // Pass the role (tailor/customer) to the Google exchange
         final success = await _authService.signInWithGoogle(widget.role);
+
         if (mounted) {
           if (success) {
-            Navigator.pushReplacementNamed(context, AppRoutes.app, arguments: widget.role.toLowerCase());
+            Navigator.pushReplacementNamed(
+                context,
+                AppRoutes.app,
+                arguments: widget.role.toLowerCase()
+            );
           } else {
-            _showError("Google Sign-In failed. Please check your connection.");
+            _showError("Google Sign-In failed. Check your connection.");
           }
         }
       } catch (e) {
-        _showError("An unexpected error occurred during Google login.");
+        _showError("Google Auth Error: $e");
       } finally {
         if (mounted) setState(() => _isLoading = false);
       }
@@ -53,7 +59,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
-  /// ACTIVE: Manual Email/Password Logic
+  /// --- MANUAL DJANGO SIGN UP ---
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -62,31 +68,45 @@ class _SignUpScreenState extends State<SignUpScreen> {
       final String fullInput = _nameController.text.trim();
       final List<String> nameParts = fullInput.split(' ');
 
+      // Clean parsing for Django's expected fields
+      final String firstName = nameParts.isNotEmpty ? nameParts[0] : '';
+      final String lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : 'User';
+
       final bool success = await _authService.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
-        firstName: nameParts.isNotEmpty ? nameParts[0] : '',
-        lastName: nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '',
+        firstName: firstName,
+        lastName: lastName,
         role: widget.role.toLowerCase(),
       );
 
       if (mounted) {
         if (success) {
-          Navigator.pushReplacementNamed(context, AppRoutes.app, arguments: widget.role.toLowerCase());
+          // If successful, the AuthService has already saved the session
+          Navigator.pushReplacementNamed(
+              context,
+              AppRoutes.app,
+              arguments: widget.role.toLowerCase()
+          );
         } else {
-          _showError("Sign up failed. Email may already be in use.");
+          _showError("Sign up failed. This email might already be registered.");
         }
       }
     } catch (e) {
-      if (mounted) _showError("Connection error: Check if backend is live.");
+      if (mounted) _showError("Backend Error: Could not reach Mshoni servers.");
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   void _showError(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
+      SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating
+      ),
     );
   }
 
@@ -95,6 +115,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Stack(
           children: [
@@ -103,12 +124,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
               child: Column(
                 children: [
                   const SizedBox(height: 24),
-                  Image.asset('assets/images/logo1.png', height: 100, width: 250),
-                  const SizedBox(height: 24),
-                  Text("Create account", style: textTheme.headlineMedium),
+                  Image.asset('assets/images/logo1.png', height: 80),
+                  const SizedBox(height: 32),
+                  Text("Create account", style: textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  Text("Sign up as ${widget.role}", style: textTheme.bodyMedium),
-                  const SizedBox(height: 24),
+                  Text("Joining Mshoni as a ${widget.role}", style: textTheme.bodyLarge?.copyWith(color: Colors.black54)),
+                  const SizedBox(height: 32),
 
                   Form(
                     key: _formKey,
@@ -127,37 +148,51 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF0EA5E9),
-                              foregroundColor: Colors.white,
+                              elevation: 0,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                             ),
                             onPressed: _isLoading ? null : _submit,
-                            child: const Text("Sign up", style: TextStyle(fontWeight: FontWeight.bold)),
+                            child: const Text("Sign up", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
+                  const Row(
+                    children: [
+                      Expanded(child: Divider()),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: Text("OR", style: TextStyle(color: Colors.black38, fontWeight: FontWeight.bold)),
+                      ),
+                      Expanded(child: Divider()),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+
                   SocialAuthButtons(
                     onGoogle: () => _handleSocialAuth("google"),
                     onFacebook: () => _handleSocialAuth("facebook"),
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text("Already have an account?"),
                       TextButton(
                         onPressed: () => Navigator.pushReplacementNamed(context, AppRoutes.login),
-                        child: const Text("Sign in", style: TextStyle(color: Color(0xFF0EA5E9))),
+                        child: const Text("Sign in", style: TextStyle(color: Color(0xFF0EA5E9), fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),
                 ],
               ),
             ),
+
+            // UI Overlay for Loading
             if (_isLoading)
               Container(
                 color: Colors.black26,
@@ -176,13 +211,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
       keyboardType: keyboardType,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon),
+        prefixIcon: Icon(icon, color: const Color(0xFF0EA5E9)),
         suffixIcon: isPassword ? IconButton(
           icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
           onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
         ) : null,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        filled: true,
+        fillColor: Colors.grey[50],
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: const BorderSide(color: Color(0xFF0EA5E9))),
       ),
       validator: (v) => v == null || v.isEmpty ? "Required field" : null,
     );
