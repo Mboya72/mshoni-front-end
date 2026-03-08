@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 
 // --- SKY BLUE PREMIUM PALETTE ---
 const Color skyScaffoldBg = Color(0xFFF0F7FF);
@@ -7,21 +9,32 @@ const Color skyBluePrimary = Color(0xFF0EA5E9);
 const Color skyBlueDark = Color(0xFF0369A1);
 const Color textMain = Color(0xFF1A1D21);
 
+// --- MODEL ---
 class ChatData {
+  final int id;
   final String name, message, time, status;
   final bool isUnread;
   final int unreadCount;
 
   ChatData({
-    required this.name,
-    required this.message,
-    required this.time,
-    required this.status,
-    required this.isUnread,
-    required this.unreadCount,
+    required this.id, required this.name, required this.message,
+    required this.time, required this.status, required this.isUnread, required this.unreadCount,
   });
+
+  factory ChatData.fromJson(Map<String, dynamic> json) {
+    return ChatData(
+      id: json['id'] ?? 0,
+      name: json['other_user_name'] ?? 'Unknown',
+      message: json['last_message'] ?? 'No messages yet',
+      time: json['timestamp_formatted'] ?? '',
+      status: json['user_role'] ?? 'Client',
+      isUnread: (json['unread_count'] ?? 0) > 0,
+      unreadCount: json['unread_count'] ?? 0,
+    );
+  }
 }
 
+// --- MAIN WIDGET ---
 class TailorMessageScreen extends StatefulWidget {
   const TailorMessageScreen({super.key});
 
@@ -31,69 +44,94 @@ class TailorMessageScreen extends StatefulWidget {
 
 class _TailorMessageScreenState extends State<TailorMessageScreen> {
   String activeTab = "All";
+  late Future<List<ChatData>> futureChats;
 
-  final List<ChatData> allChats = [
-    ChatData(name: "James Omari", message: "Is the tuxedo ready for fitting?", time: "10:30 AM", status: "Active Client", isUnread: true, unreadCount: 1),
-    ChatData(name: "Sarah W.", message: "Sent the KSh 5,000 deposit via M-Pesa.", time: "09:15 AM", status: "New Inquiry", isUnread: true, unreadCount: 2),
-    ChatData(name: "David K.", message: "The waist is a bit tight on the blue suit.", time: "Yesterday", status: "Fitting Feedback", isUnread: false, unreadCount: 0),
-    ChatData(name: "Mercy J.", message: "Can you make a dress by Saturday?", time: "Monday", status: "Urgent", isUnread: false, unreadCount: 0),
-    ChatData(name: "Ahmad Tailor", message: "Fabric supplier is here.", time: "Monday", status: "Supplier", isUnread: true, unreadCount: 5),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    futureChats = fetchChats();
+  }
 
-  List<ChatData> get filteredChats {
-    if (activeTab == "Unread") return allChats.where((c) => c.isUnread).toList();
-    if (activeTab == "Clients") return allChats.where((c) => c.status == "Active Client").toList();
-    return allChats;
+  // API Connection Logic
+  Future<List<ChatData>> fetchChats() async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://mshoni-back-end.onrender.com/api/chat/threads/'),
+        headers: {
+          'Content-Type': 'application/json',
+          // 'Authorization': 'Bearer YOUR_TOKEN_HERE', // Add your auth logic here
+        },
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        List data = json.decode(response.body);
+        return data.map((json) => ChatData.fromJson(json)).toList();
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Failed to connect to Mshoni: $e');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          systemOverlayStyle: const SystemUiOverlayStyle(
-            statusBarColor: Colors.transparent,
-            statusBarIconBrightness: Brightness.dark,
-          ),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-        title: const Text(
-          "Client Chats",
-          style: TextStyle(color: textMain, fontWeight: FontWeight.bold, fontSize: 26),
-        ),
-        actions: [
-          IconButton(icon: const Icon(Icons.search, color: textMain), onPressed: () {}),
-          const SizedBox(width: 8),
-        ],
+      backgroundColor: skyScaffoldBg,
+      appBar: AppBar(
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text("Client Chats", style: TextStyle(color: textMain, fontWeight: FontWeight.bold, fontSize: 24)),
       ),
-      body: Column(
-        children: [
-          // --- FUNCTIONAL SKY TABS ---
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
+      body: FutureBuilder<List<ChatData>>(
+        future: futureChats,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: skyBluePrimary));
+          } else if (snapshot.hasError) {
+            return _buildErrorState(snapshot.error.toString());
+          }
+
+          final allChats = snapshot.data ?? [];
+          List<ChatData> filteredChats = allChats;
+          if (activeTab == "Unread") filteredChats = allChats.where((c) => c.isUnread).toList();
+          if (activeTab == "Clients") filteredChats = allChats.where((c) => c.status.contains("Client")).toList();
+
+          return RefreshIndicator(
+            onRefresh: () async {
+              setState(() { futureChats = fetchChats(); });
+            },
+            child: Column(
               children: [
-                _buildTab("All", allChats.length),
-                const SizedBox(width: 24),
-                _buildTab("Unread", allChats.where((c) => c.isUnread).length),
-                const SizedBox(width: 24),
-                _buildTab("Clients"),
+                _buildTabRow(allChats),
+                Expanded(
+                  child: filteredChats.isEmpty
+                      ? Center(child: Text("No $activeTab conversations"))
+                      : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: filteredChats.length,
+                    itemBuilder: (context, index) => _ClientChatTile(chat: filteredChats[index]),
+                  ),
+                ),
               ],
             ),
-          ),
+          );
+        },
+      ),
+    );
+  }
 
-          // --- CHAT LIST ---
-          Expanded(
-            child: filteredChats.isEmpty
-                ? Center(child: Text("No $activeTab conversations", style: const TextStyle(color: Colors.grey)))
-                : ListView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-              itemCount: filteredChats.length,
-              itemBuilder: (context, index) {
-                return _ClientChatTile(chat: filteredChats[index]);
-              },
-            ),
-          ),
+  Widget _buildTabRow(List<ChatData> all) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          _buildTab("All", all.length),
+          const SizedBox(width: 24),
+          _buildTab("Unread", all.where((c) => c.isUnread).length),
+          const SizedBox(width: 24),
+          _buildTab("Clients"),
         ],
       ),
     );
@@ -108,148 +146,66 @@ class _TailorMessageScreenState extends State<TailorMessageScreen> {
         children: [
           Row(
             children: [
-              Text(
-                label,
-                style: TextStyle(
-                  color: isActive ? skyBluePrimary : Colors.grey[600],
-                  fontWeight: isActive ? FontWeight.bold : FontWeight.bold,
-                  fontSize: 15,
-                ),
-              ),
+              Text(label, style: TextStyle(color: isActive ? skyBluePrimary : Colors.grey[600], fontWeight: FontWeight.bold)),
               if (count != null && count > 0) ...[
-                const SizedBox(width: 6),
+                const SizedBox(width: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: isActive ? skyBluePrimary : Colors.grey[300],
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    "$count",
-                    style: TextStyle(
-                        color: isActive ? Colors.white : textMain,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold),
-                  ),
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(color: isActive ? skyBluePrimary : Colors.grey[300], shape: BoxShape.circle),
+                  child: Text("$count", style: TextStyle(color: isActive ? Colors.white : textMain, fontSize: 10)),
                 ),
-              ]
+              ],
             ],
           ),
-          const SizedBox(height: 4),
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            height: 3,
-            width: isActive ? 24 : 0,
-            decoration: BoxDecoration(
-              color: skyBluePrimary,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
+          Container(height: 3, width: 20, margin: const EdgeInsets.only(top: 4), color: isActive ? skyBluePrimary : Colors.transparent),
         ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.wifi_off, size: 48, color: Colors.redAccent),
+            const SizedBox(height: 16),
+            Text(error, textAlign: TextAlign.center),
+            TextButton(onPressed: () => setState(() { futureChats = fetchChats(); }), child: const Text("Retry")),
+          ],
+        ),
       ),
     );
   }
 }
 
+// --- TILE COMPONENT ---
 class _ClientChatTile extends StatelessWidget {
   final ChatData chat;
   const _ClientChatTile({required this.chat});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: skyBluePrimary.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ListTile(
-        onTap: () {},
-        contentPadding: const EdgeInsets.all(12),
-        leading: Stack(
-          children: [
-            CircleAvatar(
-              radius: 28,
-              backgroundImage: NetworkImage('https://i.pravatar.cc/150?u=${chat.name}'),
-            ),
-            if (chat.isUnread)
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  width: 14,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    color: Colors.orangeAccent,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                ),
-              ),
-          ],
-        ),
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(chat.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            Text(chat.time, style: const TextStyle(color: Colors.grey, fontSize: 11)),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Text(
-              chat.message,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: chat.isUnread ? textMain : Colors.black45,
-                fontWeight: chat.isUnread ? FontWeight.bold : FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            // --- THE STATUS TAG ---
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: skyBluePrimary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                chat.status,
-                style: const TextStyle(
-                  color: skyBlueDark,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w900, // Extra bold for the tag
-                ),
-              ),
-            ),
-          ],
-        ),
+        leading: CircleAvatar(backgroundImage: NetworkImage('https://i.pravatar.cc/150?u=${chat.id}')),
+        title: Text(chat.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(chat.message, maxLines: 1, overflow: TextOverflow.ellipsis),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            Text(chat.time, style: const TextStyle(fontSize: 10, color: Colors.grey)),
             if (chat.isUnread)
-              CircleAvatar(
-                radius: 10,
-                backgroundColor: skyBluePrimary,
-                child: Text(
-                  "${chat.unreadCount}",
-                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                ),
-              )
-            else
-              const Icon(Icons.done_all, size: 18, color: skyBluePrimary),
-            const SizedBox(height: 15),
-            const Icon(Icons.chevron_right, color: Colors.black12, size: 18),
+              Container(
+                margin: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.all(6),
+                decoration: const BoxDecoration(color: skyBluePrimary, shape: BoxShape.circle),
+                child: Text("${chat.unreadCount}", style: const TextStyle(color: Colors.white, fontSize: 10)),
+              ),
           ],
         ),
       ),

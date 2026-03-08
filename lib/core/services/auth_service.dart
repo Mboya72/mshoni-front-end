@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart'; // <--- ADD THIS LINE
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -11,7 +11,7 @@ class AuthService {
   factory AuthService() => _instance;
   AuthService._internal();
 
-  // Google Sign In Instance (v7+ singleton style)
+  // Using the new Singleton instance
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
 
   static const String _tokenKey = 'access_token';
@@ -30,31 +30,34 @@ class AuthService {
     }
   }
 
-  // --- 2. ACCESS TOKEN (FIXED: Moved inside the class) ---
+  // --- 2. ACCESS TOKEN ---
   Future<String?> getAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString(_tokenKey);
-
-    if (token != null) {
-      debugPrint("🔑 Token retrieved successfully");
-    } else {
-      debugPrint("⚠️ No token found in storage");
-    }
-    return token;
+    return prefs.getString(_tokenKey);
   }
 
   // --- 3. GOOGLE SIGN IN ---
   Future<bool> signInWithGoogle(String role) async {
     try {
-      await _googleSignIn.initialize();
+      // FIX: Removed 'scopes' parameter to comply with v7 initialize signature
+      await _googleSignIn.initialize(
+        serverClientId: '711009292399-snhm4jdupd893e7vtgb67u5grg0459fh.apps.googleusercontent.com',
+      );
+
+      // Trigger authentication
       final GoogleSignInAccount googleUser = await _googleSignIn.authenticate();
+
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
       final String? idToken = googleAuth.idToken;
 
-      if (idToken == null) return false;
+      if (idToken == null) {
+        debugPrint("❌ Mshoni: ID Token not found");
+        return false;
+      }
 
+      // POST to your Django backend on Render
       final response = await http.post(
-        Uri.parse("${ApiConfig.baseUrl}/api/users/google/"),
+        Uri.parse("${ApiConfig.baseUrl}/users/google/"),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'token': idToken,
@@ -63,12 +66,15 @@ class AuthService {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
+        debugPrint("✅ Mshoni: Backend Auth Successful");
         await _saveSession(jsonDecode(response.body));
         return true;
+      } else {
+        debugPrint("❌ Backend Error (${response.statusCode}): ${response.body}");
+        return false;
       }
-      return false;
     } catch (e) {
-      debugPrint("Google Auth Error: $e");
+      debugPrint("❌ Google Auth Error: $e");
       return false;
     }
   }
@@ -91,7 +97,7 @@ class AuthService {
           'first_name': firstName,
           'last_name': lastName,
           'role': role.toLowerCase(),
-          'username': email.split('@')[0],
+          'username': email,
         }),
       );
 
@@ -101,7 +107,7 @@ class AuthService {
       }
       return false;
     } catch (e) {
-      debugPrint("SignUp Error: $e");
+      debugPrint("❌ SignUp Error: $e");
       return false;
     }
   }
@@ -121,7 +127,7 @@ class AuthService {
       }
       return false;
     } catch (e) {
-      debugPrint("Login Error: $e");
+      debugPrint("❌ Login Error: $e");
       return false;
     }
   }
@@ -129,8 +135,12 @@ class AuthService {
   // --- SESSION MANAGEMENT ---
   Future<void> _saveSession(Map<String, dynamic> data) async {
     final prefs = await SharedPreferences.getInstance();
-    if (data.containsKey('access')) await prefs.setString(_tokenKey, data['access']);
-    if (data.containsKey('refresh')) await prefs.setString(_refreshKey, data['refresh']);
+    final token = data['access'] ?? data['access_token'];
+    final refresh = data['refresh'] ?? data['refresh_token'];
+
+    if (token != null) await prefs.setString(_tokenKey, token);
+    if (refresh != null) await prefs.setString(_refreshKey, refresh);
+
     await prefs.setString(_userKey, jsonEncode(data));
   }
 
@@ -141,4 +151,4 @@ class AuthService {
     } catch (_) {}
     await prefs.clear();
   }
-} // <--- END OF CLASS
+}
