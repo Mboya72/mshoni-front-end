@@ -19,10 +19,12 @@ enum UserRole { customer, tailor }
 
 class DynamicNavBar extends StatefulWidget {
   final UserRole role;
+  final String token; // 1. Accept the token from login
 
   const DynamicNavBar({
     super.key,
     required this.role,
+    required this.token, // 2. Make it required
   });
 
   @override
@@ -39,24 +41,29 @@ class _DynamicNavBarState extends State<DynamicNavBar> {
   void initState() {
     super.initState();
 
+    // 3. Removed 'const' because the list now depends on the 'token' variable
     if (widget.role == UserRole.customer) {
-      _pages = const [
-        CustomerHomeScreen(),
-        CustomerMessageScreen(),
-        CustomerTailorsScreen(),
-        CustomerProjectsScreen(),
-        CustomerProfileScreen(),
+      _pages = [
+        const CustomerHomeScreen(),
+        // Assuming CustomerMessageScreen also needs the token soon:
+        const CustomerMessageScreen(),
+        const CustomerTailorsScreen(),
+        const CustomerProjectsScreen(),
+        const CustomerProfileScreen(),
       ];
     } else {
-      _pages = const [
-        TailorHomeScreen(),
-        TailorMessageScreen(),
-        TailorCustomersScreen(),
-        TailorProjectsScreen(),
-        TailorProfileScreen(),
+      _pages = [
+        const TailorHomeScreen(),
+        // FIX: Pass the token to the TailorMessageScreen
+        TailorMessageScreen(authToken: widget.token),
+        const TailorCustomersScreen(),
+        const TailorProjectsScreen(),
+        const TailorProfileScreen(),
       ];
     }
   }
+
+  // ... rest of your _buildNavItems and build methods remain the same ...
 
   // ✅ Outline icons with active state
   List<Widget> _buildNavItems() {

@@ -26,16 +26,26 @@ class AppRoutes {
           return const SignInScreen();
 
         case app:
-          final rawRole = (settings.arguments as String? ?? 'customer').toLowerCase();
+        // 1. Extract arguments as a Map
+          final args = settings.arguments as Map<String, dynamic>? ?? {};
 
-          // Map backend string to Flutter Enum
+          // 2. Safely get the role string and token
+          final String rawRole = (args['role'] ?? 'customer').toString().toLowerCase();
+          final String token = args['token'] ?? ''; // Extract the token here
+
+          // 3. Map backend string to Flutter Enum
           UserRole role;
           if (rawRole == 'tailor') {
             role = UserRole.tailor;
           } else {
             role = UserRole.customer;
           }
-          return DynamicNavBar(role: role);
+
+          // 4. FIX: Pass both role and token to the DynamicNavBar
+          return DynamicNavBar(
+            role: role,
+            token: token,
+          );
 
         default:
           return const Scaffold(
