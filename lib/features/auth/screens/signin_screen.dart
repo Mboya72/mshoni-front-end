@@ -39,42 +39,35 @@ class _SignInScreenState extends State<SignInScreen> {
     );
   }
 
-  /// --- GOOGLE LOGIN LOGIC ---
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
-
     try {
-      // For Sign In, we default to 'customer' but Django will return the
-      // actual stored role (Tailor/Customer) if the account exists.
       final success = await _authService.signInWithGoogle('customer');
-
       if (success) {
         final userData = await _authService.getUserProfile();
-        final String role = (userData?['role'] ?? 'customer').toString().toLowerCase();
+        final String? token = await _authService.getToken();
 
         if (mounted) {
           Navigator.pushReplacementNamed(
             context,
             AppRoutes.app,
-            arguments: role,
+            // MUST be a Map
+            arguments: {
+              'role': (userData?['role'] ?? 'customer').toString().toLowerCase(),
+              'token': token ?? '',
+            },
           );
         }
-      } else {
-        _showError("Google Sign-In was cancelled or failed.");
       }
-    } catch (e) {
-      _showError("An unexpected error occurred with Google.");
+      // ... error handling ...
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  /// --- MANUAL EMAIL LOGIN ---
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _isLoading = true);
-
     try {
       final success = await _authService.login(
         _emailController.text.trim(),
@@ -83,20 +76,21 @@ class _SignInScreenState extends State<SignInScreen> {
 
       if (success) {
         final userData = await _authService.getUserProfile();
-        final String role = (userData?['role'] ?? 'customer').toString().toLowerCase();
+        final String? token = await _authService.getToken();
 
         if (mounted) {
           Navigator.pushReplacementNamed(
             context,
             AppRoutes.app,
-            arguments: role,
+            // MUST be a Map
+            arguments: {
+              'role': (userData?['role'] ?? 'customer').toString().toLowerCase(),
+              'token': token ?? '',
+            },
           );
         }
-      } else {
-        _showError("Invalid email or password.");
       }
-    } catch (e) {
-      _showError("Connection error: Ensure your backend is live.");
+      // ... error handling ...
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

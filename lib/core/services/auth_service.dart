@@ -9,53 +9,62 @@ class AuthService {
   // Singleton pattern
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
-  AuthService._internal();
 
-  // Using the new Singleton instance
+  // Use the singleton instance and manage initialization for version 7.x
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  late final Future<void> _initialization;
+
+  AuthService._internal() {
+    _initialization = _googleSignIn.initialize(
+      serverClientId: '711009292399-snhm4jdupd893e7vtgb67u5grg0459fh.apps.googleusercontent.com',
+    );
+  }
 
   static const String _tokenKey = 'access_token';
   static const String _refreshKey = 'refresh_token';
   static const String _userKey = 'user_data';
 
-  // --- 1. USER PROFILE ---
-  Future<Map<String, dynamic>?> getUserProfile() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? userStr = prefs.getString(_userKey);
-    if (userStr == null) return null;
-    try {
-      return jsonDecode(userStr) as Map<String, dynamic>;
-    } catch (e) {
-      return null;
-    }
-  }
+  // --- TOKEN RETRIEVAL ---
 
-  // --- 2. ACCESS TOKEN ---
+  // Satisfies Customer/Tailor Home Screens
   Future<String?> getAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_tokenKey);
   }
 
-  // --- 3. GOOGLE SIGN IN ---
+  // Satisfies SignIn Screen
+  Future<String?> getToken() async => await getAccessToken();
+
+  // --- USER PROFILE ---
+  Future<Map<String, dynamic>?> getUserProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? userStr = prefs.getString(_userKey);
+    if (userStr == null) return null;
+    try {
+      final Map<String, dynamic> data = jsonDecode(userStr);
+      return data['user'] ?? data;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // --- GOOGLE SIGN IN ---
   Future<bool> signInWithGoogle(String role) async {
     try {
-      // FIX: Removed 'scopes' parameter to comply with v7 initialize signature
-      await _googleSignIn.initialize(
-        serverClientId: '711009292399-snhm4jdupd893e7vtgb67u5grg0459fh.apps.googleusercontent.com',
+      await _initialization;
+      
+      // Use authenticate() instead of signIn() for version 7.x
+      // Scopes are passed via scopeHint if needed during authentication
+      final GoogleSignInAccount googleUser = await _googleSignIn.authenticate(
+        scopeHint: <String>['email', 'profile'],
       );
 
-      // Trigger authentication
-      final GoogleSignInAccount googleUser = await _googleSignIn.authenticate();
-
+      // authentication is now a synchronous getter
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
       final String? idToken = googleAuth.idToken;
 
-      if (idToken == null) {
-        debugPrint("❌ Mshoni: ID Token not found");
-        return false;
-      }
+      if (idToken == null) return false;
 
-      // POST to your Django backend on Render
       final response = await http.post(
         Uri.parse("${ApiConfig.baseUrl}/users/google/"),
         headers: {'Content-Type': 'application/json'},
@@ -66,20 +75,36 @@ class AuthService {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        debugPrint("✅ Mshoni: Backend Auth Successful");
         await _saveSession(jsonDecode(response.body));
         return true;
-      } else {
-        debugPrint("❌ Backend Error (${response.statusCode}): ${response.body}");
-        return false;
       }
+      return false;
     } catch (e) {
       debugPrint("❌ Google Auth Error: $e");
       return false;
     }
   }
 
-  // --- 4. SIGN UP ---
+  // --- MANUAL LOGIN ---
+  Future<bool> login(String email, String password) async {
+    try {
+      final response = await http.post(
+        Uri.parse(ApiConfig.login),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'password': password}),
+      );
+
+      if (response.statusCode == 200) {
+        await _saveSession(jsonDecode(response.body));
+        return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // --- SIGN UP ---
   Future<bool> signUp({
     required String email,
     required String password,
@@ -107,27 +132,6 @@ class AuthService {
       }
       return false;
     } catch (e) {
-      debugPrint("❌ SignUp Error: $e");
-      return false;
-    }
-  }
-
-  // --- 5. LOGIN ---
-  Future<bool> login(String email, String password) async {
-    try {
-      final response = await http.post(
-        Uri.parse(ApiConfig.login),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'password': password}),
-      );
-
-      if (response.statusCode == 200) {
-        await _saveSession(jsonDecode(response.body));
-        return true;
-      }
-      return false;
-    } catch (e) {
-      debugPrint("❌ Login Error: $e");
       return false;
     }
   }
@@ -144,10 +148,13 @@ class AuthService {
     await prefs.setString(_userKey, jsonEncode(data));
   }
 
+  // --- LOGOUT ---
   Future<void> signOut() async {
     final prefs = await SharedPreferences.getInstance();
     try {
+      await _initialization;
       await _googleSignIn.signOut();
+      await _googleSignIn.disconnect(); 
     } catch (_) {}
     await prefs.clear();
   }
