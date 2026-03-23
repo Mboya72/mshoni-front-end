@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'tailor_profile_screen.dart';
 import 'product_detail_screen.dart';
 import 'customer_cart_screen.dart';
